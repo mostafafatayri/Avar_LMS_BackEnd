@@ -2,7 +2,6 @@ package com.fatayriTech.avarLMS.service.security;
 
 import com.fatayriTech.avarLMS.model.User;
 import com.fatayriTech.avarLMS.repository.UserRepo;
-import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +31,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String path = request.getServletPath();
 
         if (path.startsWith("/api/v1/auth")) {
@@ -56,7 +60,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             User user = userRepo.findByEmail(email).orElse(null);
 
             if (user != null) {
-
                 CurrentUser currentUser = new CurrentUser(
                         user.getId(),
                         null,

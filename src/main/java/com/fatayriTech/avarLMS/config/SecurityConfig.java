@@ -70,8 +70,6 @@ public class SecurityConfig {
 
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "http://192.168.1.102:5173",
-                "http://172.20.10.2:5173",
                 "https://avar-lms-front-end.vercel.app"
         ));
 
@@ -79,12 +77,8 @@ public class SecurityConfig {
                 "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
         ));
 
-        configuration.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "X-Organization-Id"
-        ));
-
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
