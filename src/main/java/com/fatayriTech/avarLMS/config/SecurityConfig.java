@@ -71,7 +71,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "http://192.168.1.102:5173",
-                "http://172.20.10.2:5173"
+                "http://172.20.10.2:5173",
+                "https://avar-lms-front-end.vercel.app"
         ));
 
         configuration.setAllowedMethods(List.of(
