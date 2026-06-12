@@ -1,9 +1,11 @@
 package com.fatayriTech.avarLMS.service.WorkStructure;
 
 import com.fatayriTech.avarLMS.model.Department;
+import com.fatayriTech.avarLMS.model.Organization;
 import com.fatayriTech.avarLMS.model.Specialization;
 import com.fatayriTech.avarLMS.model.SubTeam;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
+import com.fatayriTech.avarLMS.repository.OrganizationRepo;
 import com.fatayriTech.avarLMS.repository.SpecializationRepo;
 import com.fatayriTech.avarLMS.repository.SubTeamRepo;
 import com.fatayriTech.avarLMS.request.SpecializationRequest;
@@ -20,37 +22,48 @@ public class SpecializationService {
     private final SpecializationRepo specializationRepo;
     private final DepartmentRepo departmentRepo;
     private final SubTeamRepo subTeamRepo;
+    private final OrganizationRepo organizationRepo;
 
-    public List<SpecializationResponse> getAll() {
-        return specializationRepo.findAll()
+    public List<SpecializationResponse> getAll(Long organizationId) {
+        return specializationRepo.findByOrganizationId(organizationId)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    public SpecializationResponse getById(Long id) {
-        return mapToResponse(findSpecialization(id));
+    public SpecializationResponse getById(Long organizationId, Long id) {
+        return mapToResponse(findSpecialization(organizationId, id));
     }
 
-    public SpecializationResponse create(SpecializationRequest request) {
-        Department department = departmentRepo.findById(request.getDepartmentId())
+    public SpecializationResponse create(
+            Long organizationId,
+            SpecializationRequest request
+    ) {
+        Organization organization = organizationRepo.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
+
+        Department department = departmentRepo
+                .findByIdAndOrganizationId(request.getDepartmentId(), organizationId)
                 .orElseThrow(() -> new RuntimeException("Department not found"));
 
         SubTeam subTeam = null;
 
         if (request.getSubTeamId() != null) {
-            subTeam = subTeamRepo.findById(request.getSubTeamId())
+            subTeam = subTeamRepo
+                    .findByIdAndOrganizationId(request.getSubTeamId(), organizationId)
                     .orElseThrow(() -> new RuntimeException("Sub-Team not found"));
         }
 
-        if (specializationRepo.existsByNameIgnoreCaseAndDepartmentId(
+        if (specializationRepo.existsByNameIgnoreCaseAndDepartmentIdAndOrganizationId(
                 request.getName(),
-                request.getDepartmentId()
+                request.getDepartmentId(),
+                organizationId
         )) {
             throw new RuntimeException("Specialization already exists in this department");
         }
 
         Specialization specialization = new Specialization();
+        specialization.setOrganization(organization);
         specialization.setName(request.getName());
         specialization.setDepartment(department);
         specialization.setSubTeam(subTeam);
@@ -60,16 +73,22 @@ public class SpecializationService {
         return mapToResponse(specializationRepo.save(specialization));
     }
 
-    public SpecializationResponse update(Long id, SpecializationRequest request) {
-        Specialization specialization = findSpecialization(id);
+    public SpecializationResponse update(
+            Long organizationId,
+            Long id,
+            SpecializationRequest request
+    ) {
+        Specialization specialization = findSpecialization(organizationId, id);
 
-        Department department = departmentRepo.findById(request.getDepartmentId())
+        Department department = departmentRepo
+                .findByIdAndOrganizationId(request.getDepartmentId(), organizationId)
                 .orElseThrow(() -> new RuntimeException("Department not found"));
 
         SubTeam subTeam = null;
 
         if (request.getSubTeamId() != null) {
-            subTeam = subTeamRepo.findById(request.getSubTeamId())
+            subTeam = subTeamRepo
+                    .findByIdAndOrganizationId(request.getSubTeamId(), organizationId)
                     .orElseThrow(() -> new RuntimeException("Sub-Team not found"));
         }
 
@@ -85,24 +104,24 @@ public class SpecializationService {
         return mapToResponse(specializationRepo.save(specialization));
     }
 
-    public SpecializationResponse setActive(Long id) {
-        Specialization specialization = findSpecialization(id);
+    public SpecializationResponse setActive(Long organizationId, Long id) {
+        Specialization specialization = findSpecialization(organizationId, id);
         specialization.setActive(true);
         return mapToResponse(specializationRepo.save(specialization));
     }
 
-    public SpecializationResponse setInactive(Long id) {
-        Specialization specialization = findSpecialization(id);
+    public SpecializationResponse setInactive(Long organizationId, Long id) {
+        Specialization specialization = findSpecialization(organizationId, id);
         specialization.setActive(false);
         return mapToResponse(specializationRepo.save(specialization));
     }
 
-    public void delete(Long id) {
-        specializationRepo.delete(findSpecialization(id));
+    public void delete(Long organizationId, Long id) {
+        specializationRepo.delete(findSpecialization(organizationId, id));
     }
 
-    private Specialization findSpecialization(Long id) {
-        return specializationRepo.findById(id)
+    private Specialization findSpecialization(Long organizationId, Long id) {
+        return specializationRepo.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new RuntimeException("Specialization not found"));
     }
 
@@ -112,8 +131,8 @@ public class SpecializationService {
         return SpecializationResponse.builder()
                 .id(specialization.getId())
                 .name(specialization.getName())
-                .departmentId(specialization.getDepartment().getId())
-                .departmentName(specialization.getDepartment().getName())
+                .departmentId(specialization.getDepartment() != null ? specialization.getDepartment().getId() : null)
+                .departmentName(specialization.getDepartment() != null ? specialization.getDepartment().getName() : null)
                 .subTeamId(subTeam != null ? subTeam.getId() : null)
                 .subTeamName(subTeam != null ? subTeam.getName() : null)
                 .description(specialization.getDescription())

@@ -1,9 +1,11 @@
 package com.fatayriTech.avarLMS.service.WorkStructure;
 
 import com.fatayriTech.avarLMS.model.Department;
+import com.fatayriTech.avarLMS.model.Organization;
 import com.fatayriTech.avarLMS.model.Position;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.PositionRepo;
+import com.fatayriTech.avarLMS.repository.OrganizationRepo;
 import com.fatayriTech.avarLMS.response.position.PositionBulkUploadResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
@@ -18,26 +20,29 @@ public class PositionBulkUploadService {
 
     private final PositionRepo positionRepo;
     private final DepartmentRepo departmentRepo;
+    private final OrganizationRepo organizationRepo;
 
-    public PositionBulkUploadResponse uploadPositions(MultipartFile file) {
-
+    public PositionBulkUploadResponse uploadPositions(
+            Long organizationId,
+            MultipartFile file
+    ) {
         int totalRows = 0;
         int insertedRows = 0;
         int failedRows = 0;
+
+        Organization organization = organizationRepo.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
 
         try (
                 InputStream inputStream = file.getInputStream();
                 Workbook workbook = WorkbookFactory.create(inputStream)
         ) {
-
             Sheet sheet = workbook.getSheetAt(0);
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-
                 totalRows++;
 
                 try {
-
                     Row row = sheet.getRow(i);
 
                     if (row == null) {
@@ -59,16 +64,27 @@ public class PositionBulkUploadService {
                         continue;
                     }
 
+                    if (positionRepo.existsByCodeAndOrganizationId(code, organizationId)) {
+                        failedRows++;
+                        continue;
+                    }
+
+                    if (positionRepo.existsByNameAndOrganizationId(name, organizationId)) {
+                        failedRows++;
+                        continue;
+                    }
+
                     Department department = departmentRepo
-                            .findByCode(departmentCode)
+                            .findByCodeAndOrganizationId(departmentCode, organizationId)
                             .orElseThrow(() ->
                                     new RuntimeException(
-                                            "Department not found: " + departmentCode
+                                            "Department not found in this organization: " + departmentCode
                                     )
                             );
 
                     Position position = new Position();
 
+                    position.setOrganization(organization);
                     position.setName(name);
                     position.setCode(code);
                     position.setDescription(description);
@@ -76,7 +92,6 @@ public class PositionBulkUploadService {
                     position.setActive(true);
 
                     positionRepo.save(position);
-
                     insertedRows++;
 
                 } catch (Exception ex) {
@@ -85,10 +100,7 @@ public class PositionBulkUploadService {
             }
 
         } catch (Exception ex) {
-            throw new RuntimeException(
-                    "Failed to upload positions file",
-                    ex
-            );
+            throw new RuntimeException("Failed to upload positions file", ex);
         }
 
         return new PositionBulkUploadResponse(
@@ -99,7 +111,6 @@ public class PositionBulkUploadService {
     }
 
     private String getCellValue(Cell cell) {
-
         if (cell == null) {
             return null;
         }

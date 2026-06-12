@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import com.fatayriTech.avarLMS.request.Employees.LinkEmployeeUserRequest;
+
 import java.util.List;
 
 @RestController
@@ -26,76 +26,101 @@ public class EmployeeController {
 
     @PreAuthorize("hasAuthority('EMPLOYEE_CREATE')")
     @PostMapping
-    public EmployeeResponse createEmployee(@RequestBody CreateEmployeeRequest request) {
-        return employeeService.createEmployee(request);
+    public EmployeeResponse createEmployee(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestBody CreateEmployeeRequest request
+    ) {
+        return employeeService.createEmployee(organizationId, request);
     }
 
     @PreAuthorize("hasAuthority('EMPLOYEE_VIEW')")
     @GetMapping
-    public List<EmployeeResponse> getAllEmployees() {
-        return employeeService.getAllEmployees();
+    public List<EmployeeResponse> getAllEmployees(
+            @RequestHeader("X-Organization-Id") Long organizationId
+    ) {
+        return employeeService.getAllEmployees(organizationId);
     }
 
     @PreAuthorize("hasAuthority('EMPLOYEE_VIEW')")
     @GetMapping("/{id}")
-    public EmployeeResponse getEmployeeById(@PathVariable Long id) {
-        return employeeService.getEmployeeById(id);
+    public EmployeeResponse getEmployeeById(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return employeeService.getEmployeeById(organizationId, id);
     }
 
     @PreAuthorize("hasAuthority('EMPLOYEE_UPDATE')")
     @PutMapping("/{id}")
     public EmployeeResponse updateEmployee(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long id,
             @RequestBody UpdateEmployeeRequest request
     ) {
-        return employeeService.updateEmployee(id, request);
+        return employeeService.updateEmployee(organizationId, id, request);
     }
 
     @PreAuthorize("hasAuthority('EMPLOYEE_UPDATE')")
     @PatchMapping("/{id}/inactive")
-    public EmployeeResponse setEmployeeInactive(@PathVariable Long id) {
-        return employeeService.setEmployeeInactive(id);
+    public EmployeeResponse setEmployeeInactive(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return employeeService.setEmployeeInactive(organizationId, id);
     }
 
     @PreAuthorize("hasAuthority('EMPLOYEE_BULK_UPLOAD')")
     @PostMapping("/bulk-upload")
     public EmployeeBulkUploadResponse bulkUploadEmployees(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @RequestParam("file") MultipartFile file
     ) {
-        return employeeBulkUploadService.uploadEmployees(file);
+        return employeeBulkUploadService.uploadEmployees(organizationId, file);
     }
-
 
     @PreAuthorize("hasAuthority('EMPLOYEE_DELETE')")
     @DeleteMapping("/{id}")
-    public void deleteEmployee(@PathVariable Long id) {
-        employeeService.deleteEmployee(id);
+    public void deleteEmployee(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        employeeService.deleteEmployee(organizationId, id);
     }
+
     @PreAuthorize("hasAuthority('EMPLOYEE_UPDATE')")
     @PatchMapping("/{employeeId}/link-user")
     public EmployeeResponse linkEmployeeToUser(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long employeeId,
             @RequestBody LinkEmployeeUserRequest request
     ) {
-        return employeeService.linkEmployeeToUser(employeeId, request);
+        return employeeService.linkEmployeeToUser(organizationId, employeeId, request);
     }
 
     @PreAuthorize("hasAuthority('EMPLOYEE_UPDATE')")
     @PatchMapping("/{employeeId}/unlink-user")
-    public EmployeeResponse unlinkEmployeeUser(@PathVariable Long employeeId) {
-        return employeeService.unlinkEmployeeUser(employeeId);
+    public EmployeeResponse unlinkEmployeeUser(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long employeeId
+    ) {
+        return employeeService.unlinkEmployeeUser(organizationId, employeeId);
     }
 
     @PreAuthorize("hasAuthority('EMPLOYEE_VIEW')")
     @GetMapping("/manager/{managerId}/team")
-    public List<EmployeeResponse> getEmployeesByManager(@PathVariable Long managerId) {
-        return employeeService.getEmployeesByManager(managerId);
+    public List<EmployeeResponse> getEmployeesByManager(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long managerId
+    ) {
+        return employeeService.getEmployeesByManager(organizationId, managerId);
     }
 
     @PreAuthorize("hasAuthority('EMPLOYEE_UPDATE')")
     @PostMapping("/{employeeId}/invite")
-    public EmployeeResponse inviteEmployee(@PathVariable Long employeeId) {
-        return employeeService.inviteEmployee(employeeId);
+    public EmployeeResponse inviteEmployee(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long employeeId
+    ) {
+        return employeeService.inviteEmployee(organizationId, employeeId);
     }
-
 }

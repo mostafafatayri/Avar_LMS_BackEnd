@@ -1,36 +1,57 @@
 package com.fatayriTech.avarLMS.model;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "organizations")
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
 public class Organization {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
+    private String code;
+
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "database_name", unique = true)
-    private String databaseName;
+    private String industry;
 
-    private boolean active = true;
+    private String contactEmail;
 
-    //@Column(nullable = false)
-    private String code;
+    private String contactPhone;
 
-    //@Column(nullable = false)
-    private String LogoUrl;
+    private String logoUrl;
 
     @Column(nullable = false)
-    private String slug;
+    private Boolean active = true;
 
-    private String color;
+    private LocalDate licenseStartDate;
+
+    private LocalDate licenseEndDate;
+
+    private Integer maxUsers = 50;
+
+    private LocalDateTime creationDate;
+
+    private LocalDateTime modificationDate;
+
+    @PrePersist
+    protected void onCreate() {
+        creationDate = LocalDateTime.now();
+        modificationDate = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        modificationDate = LocalDateTime.now();
+    }
 }

@@ -16,40 +16,58 @@ public class SpecializationController {
     private final SpecializationService specializationService;
 
     @GetMapping
-    public List<SpecializationResponse> getAll() {
-        return specializationService.getAll();
+    public List<SpecializationResponse> getAll(
+            @RequestHeader("X-Organization-Id") Long organizationId
+    ) {
+        return specializationService.getAll(organizationId);
     }
 
     @GetMapping("/{id}")
-    public SpecializationResponse getById(@PathVariable Long id) {
-        return specializationService.getById(id);
+    public SpecializationResponse getById(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return specializationService.getById(organizationId, id);
     }
 
     @PostMapping
-    public SpecializationResponse create(@RequestBody SpecializationRequest request) {
-        return specializationService.create(request);
+    public SpecializationResponse create(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestBody SpecializationRequest request
+    ) {
+        return specializationService.create(organizationId, request);
     }
 
     @PutMapping("/{id}")
     public SpecializationResponse update(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long id,
             @RequestBody SpecializationRequest request
     ) {
-        return specializationService.update(id, request);
+        return specializationService.update(organizationId, id, request);
     }
 
     @PatchMapping("/{id}/active")
-    public SpecializationResponse setActive(@PathVariable Long id) {
-        return specializationService.setActive(id);
+    public SpecializationResponse setActive(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return specializationService.setActive(organizationId, id);
     }
 
     @PatchMapping("/{id}/inactive")
-    public SpecializationResponse setInactive(@PathVariable Long id) {
-        return specializationService.setInactive(id);
+    public SpecializationResponse setInactive(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return specializationService.setInactive(organizationId, id);
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        specializationService.delete(id);
+    public void delete(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        specializationService.delete(organizationId, id);
     }
 }

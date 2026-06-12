@@ -13,8 +13,8 @@ import java.time.LocalDateTime;
         name = "specializations",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_specialization_name_department",
-                        columnNames = {"name", "department_id"}
+                        name = "uk_specialization_name_department_org",
+                        columnNames = {"name", "department_id", "organization_id"}
                 )
         }
 )
@@ -24,7 +24,10 @@ public class Specialization {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Example: Safety Training, Compliance, LMS Administration
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
+
     @Column(nullable = false, length = 150)
     private String name;
 

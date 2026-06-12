@@ -16,40 +16,58 @@ public class EmployeeRoleController {
     private final EmployeeRoleService employeeRoleService;
 
     @GetMapping
-    public List<EmployeeRoleResponse> getAll() {
-        return employeeRoleService.getAll();
+    public List<EmployeeRoleResponse> getAll(
+            @RequestHeader("X-Organization-Id") Long organizationId
+    ) {
+        return employeeRoleService.getAll(organizationId);
     }
 
     @GetMapping("/{id}")
-    public EmployeeRoleResponse getById(@PathVariable Long id) {
-        return employeeRoleService.getById(id);
+    public EmployeeRoleResponse getById(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return employeeRoleService.getById(organizationId, id);
     }
 
     @PostMapping
-    public EmployeeRoleResponse create(@RequestBody EmployeeRoleRequest request) {
-        return employeeRoleService.create(request);
+    public EmployeeRoleResponse create(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestBody EmployeeRoleRequest request
+    ) {
+        return employeeRoleService.create(organizationId, request);
     }
 
     @PutMapping("/{id}")
     public EmployeeRoleResponse update(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long id,
             @RequestBody EmployeeRoleRequest request
     ) {
-        return employeeRoleService.update(id, request);
+        return employeeRoleService.update(organizationId, id, request);
     }
 
     @PatchMapping("/{id}/active")
-    public EmployeeRoleResponse setActive(@PathVariable Long id) {
-        return employeeRoleService.setActive(id);
+    public EmployeeRoleResponse setActive(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return employeeRoleService.setActive(organizationId, id);
     }
 
     @PatchMapping("/{id}/inactive")
-    public EmployeeRoleResponse setInactive(@PathVariable Long id) {
-        return employeeRoleService.setInactive(id);
+    public EmployeeRoleResponse setInactive(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return employeeRoleService.setInactive(organizationId, id);
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        employeeRoleService.delete(id);
+    public void delete(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        employeeRoleService.delete(organizationId, id);
     }
 }

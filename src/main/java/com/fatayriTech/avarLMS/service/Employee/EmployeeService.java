@@ -2,13 +2,13 @@ package com.fatayriTech.avarLMS.service.Employee;
 
 import com.fatayriTech.avarLMS.exceptions.AlreadyExistsException;
 import com.fatayriTech.avarLMS.exceptions.ResourceNotFoundException;
-import com.fatayriTech.avarLMS.model.User;
 import com.fatayriTech.avarLMS.model.*;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.PositionRepo;
 import com.fatayriTech.avarLMS.repository.Employee.EmployeeInviteRepo;
 import com.fatayriTech.avarLMS.repository.Employee.EmployeeRepo;
 import com.fatayriTech.avarLMS.repository.NationalityRepo;
+import com.fatayriTech.avarLMS.repository.OrganizationRepo;
 import com.fatayriTech.avarLMS.repository.SendingEmails.EmailQueueRepository;
 import com.fatayriTech.avarLMS.repository.UserRepo;
 import com.fatayriTech.avarLMS.request.Employees.CreateEmployeeRequest;
@@ -28,29 +28,34 @@ public class EmployeeService {
     private final DepartmentRepo departmentRepo;
     private final PositionRepo positionRepo;
     private final UserRepo userRepo;
-
+    private final OrganizationRepo organizationRepo;
     private final NationalityRepo nationalityRepo;
     private final EmailQueueRepository emailQueueRepo;
     private final EmployeeInviteRepo employeeInviteRepo;
 
-    public EmployeeResponse createEmployee(CreateEmployeeRequest request) {
-        if (employeeRepo.existsByEmail(request.getEmail())) {
+    public EmployeeResponse createEmployee(Long organizationId, CreateEmployeeRequest request) {
+        if (employeeRepo.existsByEmailAndOrganizationId(request.getEmail(), organizationId)) {
             throw new AlreadyExistsException("Employee already exists with email: " + request.getEmail());
         }
 
-        Department department = departmentRepo.findById(request.getDepartmentId())
+        if (employeeRepo.existsByEmployeeIdAndOrganizationId(request.getEmployeeId(), organizationId)) {
+            throw new AlreadyExistsException("Employee already exists with ID: " + request.getEmployeeId());
+        }
+
+        Organization organization = organizationRepo.findById(organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization not found"));
+
+        Department department = departmentRepo.findByIdAndOrganizationId(request.getDepartmentId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
 
-        Position position = positionRepo.findById(request.getPositionId())
+        Position position = positionRepo.findByIdAndOrganizationId(request.getPositionId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Position not found"));
 
         Employee manager = null;
         if (request.getManagerId() != null) {
-            manager = employeeRepo.findById(request.getManagerId())
+            manager = employeeRepo.findByIdAndOrganizationId(request.getManagerId(), organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Manager not found"));
         }
-
-
 
         Nationality nationality = null;
         if (request.getNationalityId() != null) {
@@ -59,6 +64,7 @@ public class EmployeeService {
         }
 
         Employee employee = new Employee();
+        employee.setOrganization(organization);
         employee.setEmployeeId(request.getEmployeeId());
         employee.setEmail(request.getEmail());
         employee.setFirstName(request.getFirstName());
@@ -67,7 +73,6 @@ public class EmployeeService {
         employee.setDepartment(department);
         employee.setPosition(position);
         employee.setManager(manager);
-
         employee.setNationality(nationality);
         employee.setGender(request.getGender());
         employee.setPhoneNumber(request.getPhoneNumber());
@@ -76,42 +81,45 @@ public class EmployeeService {
         return mapToResponse(employeeRepo.save(employee));
     }
 
-    public List<EmployeeResponse> getAllEmployees() {
-        return employeeRepo.findAll()
+    public List<EmployeeResponse> getAllEmployees(Long organizationId) {
+        return employeeRepo.findByOrganizationId(organizationId)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    public EmployeeResponse getEmployeeById(Long id) {
-        Employee employee = employeeRepo.findById(id)
+    public EmployeeResponse getEmployeeById(Long organizationId, Long id) {
+        Employee employee = employeeRepo.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         return mapToResponse(employee);
     }
 
-    public EmployeeResponse updateEmployee(Long id, UpdateEmployeeRequest request) {
-        Employee employee = employeeRepo.findById(id)
+    public EmployeeResponse updateEmployee(Long organizationId, Long id, UpdateEmployeeRequest request) {
+        Employee employee = employeeRepo.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         if (!employee.getEmail().equalsIgnoreCase(request.getEmail())
-                && employeeRepo.existsByEmail(request.getEmail())) {
+                && employeeRepo.existsByEmailAndOrganizationId(request.getEmail(), organizationId)) {
             throw new AlreadyExistsException("Employee already exists with email: " + request.getEmail());
         }
 
-        Department department = departmentRepo.findById(request.getDepartmentId())
+        if (!employee.getEmployeeId().equalsIgnoreCase(request.getEmployeeId())
+                && employeeRepo.existsByEmployeeIdAndOrganizationId(request.getEmployeeId(), organizationId)) {
+            throw new AlreadyExistsException("Employee already exists with ID: " + request.getEmployeeId());
+        }
+
+        Department department = departmentRepo.findByIdAndOrganizationId(request.getDepartmentId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
 
-        Position position = positionRepo.findById(request.getPositionId())
+        Position position = positionRepo.findByIdAndOrganizationId(request.getPositionId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Position not found"));
 
         Employee manager = null;
         if (request.getManagerId() != null) {
-            manager = employeeRepo.findById(request.getManagerId())
+            manager = employeeRepo.findByIdAndOrganizationId(request.getManagerId(), organizationId)
                     .orElseThrow(() -> new ResourceNotFoundException("Manager not found"));
         }
-
-
 
         Nationality nationality = null;
         if (request.getNationalityId() != null) {
@@ -135,20 +143,19 @@ public class EmployeeService {
         return mapToResponse(employeeRepo.save(employee));
     }
 
-    public EmployeeResponse setEmployeeInactive(Long id) {
-        Employee employee = employeeRepo.findById(id)
+    public EmployeeResponse setEmployeeInactive(Long organizationId, Long id) {
+        Employee employee = employeeRepo.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
         employee.setActive(false);
-
         return mapToResponse(employeeRepo.save(employee));
     }
 
-    public EmployeeResponse linkEmployeeToUser(Long employeeId, LinkEmployeeUserRequest request) {
-        Employee employee = employeeRepo.findById(employeeId)
+    public EmployeeResponse linkEmployeeToUser(Long organizationId, Long employeeId, LinkEmployeeUserRequest request) {
+        Employee employee = employeeRepo.findByIdAndOrganizationId(employeeId, organizationId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        employeeRepo.findByUsername(request.getUsername())
+        employeeRepo.findByUsernameAndOrganizationId(request.getUsername(), organizationId)
                 .ifPresent(existingEmployee -> {
                     if (!existingEmployee.getId().equals(employeeId)) {
                         throw new RuntimeException("This username is already mapped to another employee");
@@ -158,7 +165,7 @@ public class EmployeeService {
         User user = userRepo.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("No user found with username: " + request.getUsername()));
 
-        employeeRepo.findByMasterUserId(user.getId())
+        employeeRepo.findByMasterUserIdAndOrganizationId(user.getId(), organizationId)
                 .ifPresent(existingEmployee -> {
                     if (!existingEmployee.getId().equals(employee.getId())) {
                         throw new RuntimeException("This user is already linked to another employee");
@@ -171,8 +178,8 @@ public class EmployeeService {
         return mapToResponse(employeeRepo.save(employee));
     }
 
-    public EmployeeResponse unlinkEmployeeUser(Long employeeId) {
-        Employee employee = employeeRepo.findById(employeeId)
+    public EmployeeResponse unlinkEmployeeUser(Long organizationId, Long employeeId) {
+        Employee employee = employeeRepo.findByIdAndOrganizationId(employeeId, organizationId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         employee.setMasterUserId(null);
@@ -181,22 +188,22 @@ public class EmployeeService {
         return mapToResponse(employeeRepo.save(employee));
     }
 
-    public List<EmployeeResponse> getEmployeesByManager(Long managerId) {
-        return employeeRepo.findByManagerId(managerId)
+    public List<EmployeeResponse> getEmployeesByManager(Long organizationId, Long managerId) {
+        return employeeRepo.findByManagerIdAndOrganizationId(managerId, organizationId)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
     }
 
-    public void deleteEmployee(Long id) {
-        Employee employee = employeeRepo.findById(id)
+    public void deleteEmployee(Long organizationId, Long id) {
+        Employee employee = employeeRepo.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
 
         employeeRepo.delete(employee);
     }
 
-    public EmployeeResponse inviteEmployee(Long employeeId) {
-        Employee employee = employeeRepo.findById(employeeId)
+    public EmployeeResponse inviteEmployee(Long organizationId, Long employeeId) {
+        Employee employee = employeeRepo.findByIdAndOrganizationId(employeeId, organizationId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
         if (employee.getUsername() != null && !employee.getUsername().isBlank()) {
@@ -258,14 +265,10 @@ public class EmployeeService {
                 employee.getManager() != null ? employee.getManager().getId() : null,
                 employee.getManager() != null ? buildFullName(employee.getManager()) : null,
 
-                //employee.getTerritory() != null ? employee.getTerritory().getId() : null,
-                //employee.getTerritory() != null ? employee.getTerritory().getName() : null,
-
                 employee.getNationality() != null ? employee.getNationality().getId() : null,
                 employee.getNationality() != null ? employee.getNationality().getName() : null,
 
                 employee.getGender(),
-
                 employee.getPhoneNumber(),
                 employee.isActive(),
 

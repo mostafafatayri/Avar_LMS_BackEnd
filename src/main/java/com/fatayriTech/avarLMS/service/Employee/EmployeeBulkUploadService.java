@@ -1,12 +1,10 @@
 package com.fatayriTech.avarLMS.service.Employee;
 
-import com.fatayriTech.avarLMS.exceptions.ResourceNotFoundException;
-import com.fatayriTech.avarLMS.model.Department;
-import com.fatayriTech.avarLMS.model.Employee;
-import com.fatayriTech.avarLMS.model.Position;
+import com.fatayriTech.avarLMS.model.*;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
+import com.fatayriTech.avarLMS.repository.DepartmentRepo.PositionRepo;
 import com.fatayriTech.avarLMS.repository.Employee.EmployeeRepo;
-import com.fatayriTech.avarLMS.repository.DepartmentRepo.PositionRepo ;
+import com.fatayriTech.avarLMS.repository.OrganizationRepo;
 import com.fatayriTech.avarLMS.response.employee.EmployeeBulkUploadResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
@@ -17,7 +15,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-
 @Service
 @RequiredArgsConstructor
 public class EmployeeBulkUploadService {
@@ -25,13 +22,17 @@ public class EmployeeBulkUploadService {
     private final EmployeeRepo employeeRepo;
     private final DepartmentRepo departmentRepo;
     private final PositionRepo positionRepo;
+    private final OrganizationRepo organizationRepo;
 
-    public EmployeeBulkUploadResponse uploadEmployees(MultipartFile file) {
+    public EmployeeBulkUploadResponse uploadEmployees(Long organizationId, MultipartFile file) {
         int totalRows = 0;
         int inserted = 0;
         int skipped = 0;
 
         List<String> errors = new ArrayList<>();
+
+        Organization organization = organizationRepo.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
 
         try (
                 InputStream inputStream = file.getInputStream();
@@ -98,50 +99,54 @@ public class EmployeeBulkUploadService {
                         continue;
                     }
 
-                    if (employeeRepo.existsByEmployeeId(employeeId)) {
+                    if (employeeRepo.existsByEmployeeIdAndOrganizationId(employeeId, organizationId)) {
                         skipped++;
-                        errors.add("Row " + excelRowNumber + ": Employee ID already exists: " + employeeId);
+                        errors.add("Row " + excelRowNumber + ": Employee ID already exists in this organization: " + employeeId);
                         continue;
                     }
 
-                    if (employeeRepo.existsByEmail(email)) {
+                    if (employeeRepo.existsByEmailAndOrganizationId(email, organizationId)) {
                         skipped++;
-                        errors.add("Row " + excelRowNumber + ": Email already exists: " + email);
+                        errors.add("Row " + excelRowNumber + ": Email already exists in this organization: " + email);
                         continue;
                     }
 
-                    Department department = departmentRepo.findByCode(departmentCode)
+                    Department department = departmentRepo
+                            .findByCodeAndOrganizationId(departmentCode, organizationId)
                             .orElse(null);
 
                     if (department == null) {
                         skipped++;
-                        errors.add("Row " + excelRowNumber + ": Department code not found: " + departmentCode);
+                        errors.add("Row " + excelRowNumber + ": Department code not found in this organization: " + departmentCode);
                         continue;
                     }
 
-                    Position position = positionRepo.findByCode(positionCode)
+                    Position position = positionRepo
+                            .findByCodeAndOrganizationId(positionCode, organizationId)
                             .orElse(null);
 
                     if (position == null) {
                         skipped++;
-                        errors.add("Row " + excelRowNumber + ": Position code not found: " + positionCode);
+                        errors.add("Row " + excelRowNumber + ": Position code not found in this organization: " + positionCode);
                         continue;
                     }
 
                     Employee manager = null;
 
                     if (managerEmployeeId != null && !managerEmployeeId.isBlank()) {
-                        manager = employeeRepo.findByEmployeeId(managerEmployeeId)
+                        manager = employeeRepo
+                                .findByEmployeeIdAndOrganizationId(managerEmployeeId, organizationId)
                                 .orElse(null);
 
                         if (manager == null) {
                             skipped++;
-                            errors.add("Row " + excelRowNumber + ": Manager Employee ID not found: " + managerEmployeeId);
+                            errors.add("Row " + excelRowNumber + ": Manager Employee ID not found in this organization: " + managerEmployeeId);
                             continue;
                         }
                     }
 
                     Employee employee = new Employee();
+                    employee.setOrganization(organization);
                     employee.setEmployeeId(employeeId);
                     employee.setFirstName(firstName);
                     employee.setMiddleName(middleName);
@@ -166,12 +171,7 @@ public class EmployeeBulkUploadService {
             throw new RuntimeException("Failed to upload employees file: " + e.getMessage(), e);
         }
 
-        return new EmployeeBulkUploadResponse(
-                totalRows,
-                inserted,
-                skipped,
-                errors
-        );
+        return new EmployeeBulkUploadResponse(totalRows, inserted, skipped, errors);
     }
 
     private String getCellValue(Cell cell) {

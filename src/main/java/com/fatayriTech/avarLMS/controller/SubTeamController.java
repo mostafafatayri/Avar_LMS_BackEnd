@@ -1,7 +1,5 @@
 package com.fatayriTech.avarLMS.controller;
 
-
-
 import com.fatayriTech.avarLMS.request.SubTeamRequest;
 import com.fatayriTech.avarLMS.response.SubTeamResponse;
 import com.fatayriTech.avarLMS.service.WorkStructure.SubTeamService;
@@ -18,40 +16,58 @@ public class SubTeamController {
     private final SubTeamService subTeamService;
 
     @GetMapping
-    public List<SubTeamResponse> getAll() {
-        return subTeamService.getAll();
+    public List<SubTeamResponse> getAll(
+            @RequestHeader("X-Organization-Id") Long organizationId
+    ) {
+        return subTeamService.getAll(organizationId);
     }
 
     @GetMapping("/{id}")
-    public SubTeamResponse getById(@PathVariable Long id) {
-        return subTeamService.getById(id);
+    public SubTeamResponse getById(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return subTeamService.getById(organizationId, id);
     }
 
     @PostMapping
-    public SubTeamResponse create(@RequestBody SubTeamRequest request) {
-        return subTeamService.create(request);
+    public SubTeamResponse create(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestBody SubTeamRequest request
+    ) {
+        return subTeamService.create(organizationId, request);
     }
 
     @PutMapping("/{id}")
     public SubTeamResponse update(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long id,
             @RequestBody SubTeamRequest request
     ) {
-        return subTeamService.update(id, request);
+        return subTeamService.update(organizationId, id, request);
     }
 
     @PatchMapping("/{id}/active")
-    public SubTeamResponse setActive(@PathVariable Long id) {
-        return subTeamService.setActive(id);
+    public SubTeamResponse setActive(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return subTeamService.setActive(organizationId, id);
     }
 
     @PatchMapping("/{id}/inactive")
-    public SubTeamResponse setInactive(@PathVariable Long id) {
-        return subTeamService.setInactive(id);
+    public SubTeamResponse setInactive(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return subTeamService.setInactive(organizationId, id);
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        subTeamService.delete(id);
+    public void delete(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        subTeamService.delete(organizationId, id);
     }
 }

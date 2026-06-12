@@ -1,6 +1,5 @@
 package com.fatayriTech.avarLMS.config;
 
-
 import com.fatayriTech.avarLMS.model.Permission;
 import com.fatayriTech.avarLMS.model.SecurityRole;
 import com.fatayriTech.avarLMS.model.User;
@@ -27,9 +26,10 @@ public class DataInitializer {
     private final PasswordEncoder passwordEncoder;
 
     @Bean
-    CommandLineRunner initDefaultAdminUser() {
+    CommandLineRunner initDefaultUsersAndRoles() {
         return args -> {
-            List<String> adminPermissions = List.of(
+
+            List<String> adminPermissionNames = List.of(
                     "USER_MANAGE",
                     "EMPLOYEE_VIEW",
                     "EMPLOYEE_CREATE",
@@ -43,38 +43,47 @@ public class DataInitializer {
                     "POSITION_VIEW",
                     "POSITION_CREATE",
                     "POSITION_UPDATE",
-                    "POSITION_DELETE"
+                    "POSITION_DELETE",
+                    "ORGANIZATION_VIEW"
             );
 
-            Set<Permission> permissions = adminPermissions.stream()
-                    .map(name -> permissionRepo.findByName(name)
-                            .orElseGet(() -> {
-                                Permission permission = new Permission();
-                                permission.setName(name);
-                                permission.setDescription("Permission: " + name);
-                                return permissionRepo.save(permission);
-                            }))
-                    .collect(Collectors.toSet());
+            List<String> superAdminPermissionNames = List.of(
+                    "USER_MANAGE",
+                    "EMPLOYEE_VIEW",
+                    "EMPLOYEE_CREATE",
+                    "EMPLOYEE_UPDATE",
+                    "EMPLOYEE_DELETE",
+                    "EMPLOYEE_BULK_UPLOAD",
+                    "DEPARTMENT_VIEW",
+                    "DEPARTMENT_CREATE",
+                    "DEPARTMENT_UPDATE",
+                    "DEPARTMENT_DELETE",
+                    "POSITION_VIEW",
+                    "POSITION_CREATE",
+                    "POSITION_UPDATE",
+                    "POSITION_DELETE",
+                    "ORGANIZATION_VIEW",
+                    "ORGANIZATION_CREATE",
+                    "ORGANIZATION_UPDATE",
+                    "ORGANIZATION_DELETE"
+            );
 
-            SecurityRole adminRole = roleRepo.findByCode("ADMIN")
-                    .orElseGet(() -> {
-                        SecurityRole role = new SecurityRole();
-                        role.setName("Administrator");
-                        role.setCode("ADMIN");
-                        role.setDescription("Full access to all LMS modules");
-                        role.setActive(true);
-                        return roleRepo.save(role);
-                    });
+            Set<Permission> adminPermissions = createPermissions(adminPermissionNames);
+            Set<Permission> superAdminPermissions = createPermissions(superAdminPermissionNames);
 
-            adminRole.setName("Administrator");
-            adminRole.setCode("ADMIN");
-            adminRole.setDescription("Full access to all LMS modules");
-            adminRole.setActive(true);
-            adminRole.setPermissions(permissions);
+            SecurityRole adminRole = createOrUpdateRole(
+                    "ADMIN",
+                    "Administrator",
+                    "Admin access to LMS modules without organization creation",
+                    adminPermissions
+            );
 
-            adminRole = roleRepo.save(adminRole);
-
-            SecurityRole finalAdminRole = adminRole;
+            SecurityRole superAdminRole = createOrUpdateRole(
+                    "SUPER_ADMIN",
+                    "Super Administrator",
+                    "Full platform access including organization management",
+                    superAdminPermissions
+            );
 
             userRepo.findByEmail("admin@avar.com")
                     .orElseGet(() -> {
@@ -85,10 +94,55 @@ public class DataInitializer {
                         admin.setFirstName("System");
                         admin.setLastName("Admin");
                         admin.setConfirmed(true);
-                        admin.setRoles(Set.of(finalAdminRole));
-
+                        admin.setRoles(Set.of(adminRole));
                         return userRepo.save(admin);
                     });
+
+            userRepo.findByEmail("superadmin@avar.com")
+                    .orElseGet(() -> {
+                        User superAdmin = new User();
+                        superAdmin.setUsername("superadmin");
+                        superAdmin.setEmail("superadmin@avar.com");
+                        superAdmin.setPassword(passwordEncoder.encode("superadmin123"));
+                        superAdmin.setFirstName("System");
+                        superAdmin.setLastName("Super Admin");
+                        superAdmin.setConfirmed(true);
+                        superAdmin.setRoles(Set.of(superAdminRole));
+                        return userRepo.save(superAdmin);
+                    });
         };
+    }
+
+    private Set<Permission> createPermissions(List<String> permissionNames) {
+        return permissionNames.stream()
+                .map(name -> permissionRepo.findByName(name)
+                        .orElseGet(() -> {
+                            Permission permission = new Permission();
+                            permission.setName(name);
+                            permission.setDescription("Permission: " + name);
+                            return permissionRepo.save(permission);
+                        }))
+                .collect(Collectors.toSet());
+    }
+
+    private SecurityRole createOrUpdateRole(
+            String code,
+            String name,
+            String description,
+            Set<Permission> permissions
+    ) {
+        SecurityRole role = roleRepo.findByCode(code)
+                .orElseGet(() -> {
+                    SecurityRole newRole = new SecurityRole();
+                    newRole.setCode(code);
+                    return newRole;
+                });
+
+        role.setName(name);
+        role.setDescription(description);
+        role.setActive(true);
+        role.setPermissions(permissions);
+
+        return roleRepo.save(role);
     }
 }

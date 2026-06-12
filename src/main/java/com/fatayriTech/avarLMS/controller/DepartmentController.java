@@ -1,7 +1,5 @@
 package com.fatayriTech.avarLMS.controller;
 
-
-
 import com.fatayriTech.avarLMS.request.Department.CreateDepartmentRequest;
 import com.fatayriTech.avarLMS.request.Department.UpdateDepartmentRequest;
 import com.fatayriTech.avarLMS.response.Department.DepartmentBulkUploadResponse;
@@ -24,75 +22,77 @@ public class DepartmentController {
 
     private final DepartmentService departmentService;
     private final DepartmentBulkUploadService departmentBulkUploadService;
-    //@PreAuthorize("hasAuthority('DEPARTMENT_CREATE')")
+
+    @PreAuthorize("hasAuthority('DEPARTMENT_CREATE')")
     @PostMapping
     public DepartmentResponse createDepartment(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @RequestBody CreateDepartmentRequest request
     ) {
-        return departmentService.createDepartment(request);
+        return departmentService.createDepartment(organizationId, request);
     }
 
-   // @PreAuthorize("hasAuthority('DEPARTMENT_VIEW')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_VIEW')")
     @GetMapping
-    public List<DepartmentResponse> getAllDepartments() {
-        return departmentService.getAllDepartments();
+    public List<DepartmentResponse> getAllDepartments(
+            @RequestHeader("X-Organization-Id") Long organizationId
+    ) {
+        return departmentService.getAllDepartments(organizationId);
     }
 
-    ///@PreAuthorize("hasAuthority('DEPARTMENT_VIEW')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_VIEW')")
     @GetMapping("/{id}")
     public DepartmentResponse getDepartmentById(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long id
     ) {
-        return departmentService.getDepartmentById(id);
+        return departmentService.getDepartmentById(organizationId, id);
     }
 
-    //@PreAuthorize("hasAuthority('DEPARTMENT_UPDATE')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_UPDATE')")
     @PutMapping("/{id}")
     public DepartmentResponse updateDepartment(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long id,
             @RequestBody UpdateDepartmentRequest request
     ) {
-        return departmentService.updateDepartment(id, request);
+        return departmentService.updateDepartment(organizationId, id, request);
     }
 
-   // @PreAuthorize("hasAuthority('DEPARTMENT_DELETE')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_DELETE')")
     @DeleteMapping("/{id}")
     public String deleteDepartment(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long id
     ) {
-        departmentService.deleteDepartment(id);
+        departmentService.deleteDepartment(organizationId, id);
         return "Department deleted successfully";
     }
 
-
-
-
-    /*@PreAuthorize("hasAuthority('DEPARTMENT_UPDATE')")
-    @PutMapping("/{id}")
-    public DepartmentResponse updateDepartment(
-            @PathVariable Long id,
-            @RequestBody CuDepartmentRequest request
-    ) {
-        return departmentService.updateDepartment(id, request);
-    }*/
-
-   // @PreAuthorize("hasAuthority('DEPARTMENT_UPDATE')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_UPDATE')")
     @PatchMapping("/{id}/inactive")
-    public DepartmentResponse setDepartmentInactive(@PathVariable Long id) {
-        return departmentService.setDepartmentInactive(id);
+    public DepartmentResponse setDepartmentInactive(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return departmentService.setDepartmentInactive(organizationId, id);
     }
 
-    //@PreAuthorize("hasAuthority('DEPARTMENT_UPDATE')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_UPDATE')")
     @PatchMapping("/{id}/active")
-    public DepartmentResponse setDepartmentActive(@PathVariable Long id) {
-        return departmentService.setDepartmentActive(id);
+    public DepartmentResponse setDepartmentActive(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return departmentService.setDepartmentActive(organizationId, id);
     }
 
-   // @PreAuthorize("hasAuthority('DEPARTMENT_CREATE')")
+    @PreAuthorize("hasAuthority('DEPARTMENT_CREATE')")
     @PostMapping("/bulk-upload")
     public DepartmentBulkUploadResponse bulkUploadDepartments(
+            @RequestHeader("X-Organization-Id") Long organizationId,
             @RequestParam("file") MultipartFile file
     ) {
-        return departmentBulkUploadService.uploadDepartments(file);
+        return departmentBulkUploadService.uploadDepartments(organizationId, file);
     }
 }

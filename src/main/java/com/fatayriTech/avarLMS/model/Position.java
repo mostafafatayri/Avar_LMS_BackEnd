@@ -40,6 +40,13 @@ public class Position {
     private LocalDateTime creationDate;
     private LocalDateTime modifiedDate;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "location_id")
+    private Location location;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
+
     @PrePersist
     protected void onCreate() {
         creationDate = LocalDateTime.now();
