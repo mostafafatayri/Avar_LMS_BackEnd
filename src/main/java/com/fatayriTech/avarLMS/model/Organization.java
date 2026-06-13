@@ -44,6 +44,12 @@ public class Organization {
 
     private LocalDateTime modificationDate;
 
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id")
+    private Domain domain;
+
+
     @PrePersist
     protected void onCreate() {
         creationDate = LocalDateTime.now();

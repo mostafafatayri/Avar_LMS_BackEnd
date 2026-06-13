@@ -9,6 +9,11 @@ import com.fatayriTech.avarLMS.repository.UserOrganizationRepo;
 import com.fatayriTech.avarLMS.request.OrganizationRequest;
 import com.fatayriTech.avarLMS.response.OrganizationResponse;
 import com.fatayriTech.avarLMS.repository.UserRepo;
+import com.fatayriTech.avarLMS.model.Domain;
+import com.fatayriTech.avarLMS.repository.DomainRepo;
+import com.fatayriTech.avarLMS.request.OrganizationDomainRequest;
+import com.fatayriTech.avarLMS.response.OrganizationDomainResponse;
+import com.fatayriTech.avarLMS.response.OrganizationDomainUserResponse;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
@@ -22,7 +27,7 @@ public class OrganizationService {
     private final OrganizationRepo organizationRepo;
     private final UserOrganizationRepo userOrganizationRepo;
     private final UserRepo userRepo;
-
+    private final DomainRepo domainRepo;
     public List<OrganizationResponse> getAllOrganizations() {
         return organizationRepo.findAll()
                 .stream()
@@ -137,6 +142,129 @@ public class OrganizationService {
                             org.getIndustry()
                     );
                 })
+                .toList();
+    }
+
+
+    public OrganizationDomainResponse getOrganizationDomain(Long organizationId) {
+        Organization organization = organizationRepo.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
+
+        if (organization.getDomain() == null) {
+            return null;
+        }
+
+        return mapToDomainResponse(organization.getDomain());
+    }
+
+    public OrganizationDomainResponse attachDomainToOrganization(
+            Long organizationId,
+            OrganizationDomainRequest request
+    ) {
+        Organization organization = organizationRepo.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
+
+        String normalizedDomain = normalizeDomain(request.getDomain());
+
+        Domain domain = domainRepo.findByDomainIgnoreCase(normalizedDomain)
+                .orElseGet(() -> {
+                    Domain newDomain = new Domain();
+                    newDomain.setDomain(normalizedDomain);
+                    newDomain.setAllowed(request.getAllowed() == null || request.getAllowed());
+                    return domainRepo.save(newDomain);
+                });
+
+        if (request.getAllowed() != null) {
+            domain.setAllowed(request.getAllowed());
+            domain = domainRepo.save(domain);
+        }
+
+        organization.setDomain(domain);
+        organizationRepo.save(organization);
+
+        return mapToDomainResponse(domain);
+    }
+
+    public void removeDomainFromOrganization(Long organizationId) {
+        Organization organization = organizationRepo.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
+
+        organization.setDomain(null);
+        organizationRepo.save(organization);
+    }
+
+    public List<OrganizationDomainUserResponse> getUsersByOrganizationDomain(Long organizationId) {
+        Organization organization = organizationRepo.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
+
+        if (organization.getDomain() == null) {
+            return List.of();
+        }
+
+        return userRepo.findByDomainId(organization.getDomain().getId())
+                .stream()
+                .filter(user ->
+                        user.getRoles()
+                                .stream()
+                                .noneMatch(role ->
+                                        role.getCode().equals("ADMIN") ||
+                                                role.getCode().equals("SUPER_ADMIN")
+                                )
+                )
+                .map(this::mapToDomainUserResponse)
+                .toList();
+    }
+    private OrganizationDomainResponse mapToDomainResponse(Domain domain) {
+        return OrganizationDomainResponse.builder()
+                .id(domain.getId())
+                .domain(domain.getDomain())
+                .allowed(domain.isAllowed())
+                .build();
+    }
+
+    private OrganizationDomainUserResponse mapToDomainUserResponse(User user) {
+        String fullName = String.join(" ",
+                user.getFirstName() != null ? user.getFirstName() : "",
+                user.getMiddleName() != null ? user.getMiddleName() : "",
+                user.getLastName() != null ? user.getLastName() : ""
+        ).trim().replaceAll(" +", " ");
+
+        return OrganizationDomainUserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .fullName(fullName.isBlank() ? user.getUsername() : fullName)
+                .build();
+    }
+
+    private String normalizeDomain(String domain) {
+        if (domain == null || domain.isBlank()) {
+            throw new RuntimeException("Domain is required");
+        }
+
+        return domain
+                .trim()
+                .toLowerCase()
+                .replace("https://", "")
+                .replace("http://", "")
+                .replace("www.", "");
+    }
+
+    public List<OrganizationDomainUserResponse> getOrganizationAdmins(Long organizationId) {
+        return userOrganizationRepo.findByOrganizationIdAndActiveTrue(organizationId)
+                .stream()
+                .map(UserOrganization::getUser)
+                .filter(user ->
+                        user.getRoles()
+                                .stream()
+                                .anyMatch(role ->
+                                        role.getCode().equals("ADMIN") ||
+                                                role.getCode().equals("SUPER_ADMIN")
+                                )
+                )
+                .map(this::mapToDomainUserResponse)
                 .toList();
     }
 }

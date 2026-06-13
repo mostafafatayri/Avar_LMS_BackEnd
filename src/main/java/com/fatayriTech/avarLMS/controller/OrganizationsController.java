@@ -9,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
+import com.fatayriTech.avarLMS.request.OrganizationDomainRequest;
+import com.fatayriTech.avarLMS.response.OrganizationDomainResponse;
+import com.fatayriTech.avarLMS.response.OrganizationDomainUserResponse;
 import java.util.List;
 
 @RestController
@@ -53,5 +55,38 @@ public class OrganizationsController {
     @DeleteMapping("/{id}")
     public void deleteOrganization(@PathVariable Long id) {
         organizationService.deleteOrganization(id);
+    }
+
+    ///  domain related :
+    @GetMapping("/{id}/domain")
+    public OrganizationDomainResponse getOrganizationDomain(@PathVariable Long id) {
+        return organizationService.getOrganizationDomain(id);
+    }
+
+    @PutMapping("/{id}/domain")
+    public OrganizationDomainResponse attachDomain(
+            @PathVariable Long id,
+            @RequestBody OrganizationDomainRequest request
+    ) {
+        return organizationService.attachDomainToOrganization(id, request);
+    }
+
+    @DeleteMapping("/{id}/domain")
+    public void removeDomain(@PathVariable Long id) {
+        organizationService.removeDomainFromOrganization(id);
+    }
+
+    @GetMapping("/{id}/domain-users")
+    public List<OrganizationDomainUserResponse> getOrganizationDomainUsers(
+            @PathVariable Long id
+    ) {
+        return organizationService.getUsersByOrganizationDomain(id);
+    }
+
+    @GetMapping("/{id}/admins")
+    public List<OrganizationDomainUserResponse> getOrganizationAdmins(
+            @PathVariable Long id
+    ) {
+        return organizationService.getOrganizationAdmins(id);
     }
 }

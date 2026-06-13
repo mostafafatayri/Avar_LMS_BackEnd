@@ -45,6 +45,9 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserOrganization> organizations = new HashSet<>();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id")
+    private Domain domain;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
