@@ -9,5 +9,6 @@ public enum EntityType {
     BUILDING,
     SITE,
     TERRITORY,
-    TRAINING_LECTURE
+    TRAINING_LECTURE,
+    TRAINING_VIDEO
 }
