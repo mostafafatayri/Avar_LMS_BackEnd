@@ -75,7 +75,7 @@ public class SupabaseStorageService {
                            .getAuthentication()
                            .getPrincipal();
 
-           attachment.setUploadedBy(currentUser.getEmployeeId());
+           attachment.setUploadedBy(currentUser.getUserId());
 
 
 

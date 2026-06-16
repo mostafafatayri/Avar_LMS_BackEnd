@@ -89,4 +89,37 @@ public class OrganizationsController {
     ) {
         return organizationService.getOrganizationAdmins(id);
     }
+
+    /// ////
+    @PostMapping("/{organizationId}/users/{userId}/grant-view")
+    public void grantOrganizationView(
+            @PathVariable Long organizationId,
+            @PathVariable Long userId
+    ) {
+        organizationService.grantOrganizationView(organizationId, userId);
+    }
+
+    @DeleteMapping("/{organizationId}/users/{userId}/remove-view")
+    public void removeOrganizationView(
+            @PathVariable Long organizationId,
+            @PathVariable Long userId
+    ) {
+        organizationService.removeOrganizationView(organizationId, userId);
+    }
+
+    @PostMapping("/{organizationId}/users/{userId}/make-admin")
+    public void makeOrganizationAdmin(
+            @PathVariable Long organizationId,
+            @PathVariable Long userId
+    ) {
+        organizationService.makeOrganizationAdmin(organizationId, userId);
+    }
+
+    @DeleteMapping("/{organizationId}/users/{userId}/remove-admin")
+    public void removeOrganizationAdmin(
+            @PathVariable Long organizationId,
+            @PathVariable Long userId
+    ) {
+        organizationService.removeOrganizationAdmin(organizationId, userId);
+    }
 }

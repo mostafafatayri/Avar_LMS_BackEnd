@@ -15,7 +15,8 @@ import com.fatayriTech.avarLMS.request.OrganizationDomainRequest;
 import com.fatayriTech.avarLMS.response.OrganizationDomainResponse;
 import com.fatayriTech.avarLMS.response.OrganizationDomainUserResponse;
 import lombok.RequiredArgsConstructor;
-
+import com.fatayriTech.avarLMS.model.SecurityRole;
+import com.fatayriTech.avarLMS.repository.SecurityRoleRepo;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -28,6 +29,8 @@ public class OrganizationService {
     private final UserOrganizationRepo userOrganizationRepo;
     private final UserRepo userRepo;
     private final DomainRepo domainRepo;
+    private final SecurityRoleRepo securityRoleRepo;
+
     public List<OrganizationResponse> getAllOrganizations() {
         return organizationRepo.findAll()
                 .stream()
@@ -201,6 +204,8 @@ public class OrganizationService {
             return List.of();
         }
 
+
+
         return userRepo.findByDomainId(organization.getDomain().getId())
                 .stream()
                 .filter(user ->
@@ -211,7 +216,16 @@ public class OrganizationService {
                                                 role.getCode().equals("SUPER_ADMIN")
                                 )
                 )
-                .map(this::mapToDomainUserResponse)
+                .map(user -> {
+                    OrganizationDomainUserResponse response = mapToDomainUserResponse(user);
+                    response.setHasOrganizationAccess(
+                            userOrganizationRepo.existsByUserIdAndOrganizationIdAndActiveTrue(
+                                    user.getId(),
+                                    organizationId
+                            )
+                    );
+                    return response;
+                })
                 .toList();
     }
     private OrganizationDomainResponse mapToDomainResponse(Domain domain) {
@@ -266,5 +280,69 @@ public class OrganizationService {
                 )
                 .map(this::mapToDomainUserResponse)
                 .toList();
+    }
+
+    public void grantOrganizationView(Long organizationId, Long userId) {
+        Organization organization = organizationRepo.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found"));
+
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UserOrganization userOrganization = userOrganizationRepo
+                .findByUserIdAndOrganizationId(userId, organizationId)
+                .orElseGet(() -> {
+                    UserOrganization newUserOrganization = new UserOrganization();
+                    newUserOrganization.setUser(user);
+                    newUserOrganization.setOrganization(organization);
+                    newUserOrganization.setDefaultOrganization(false);
+                    return newUserOrganization;
+                });
+
+        userOrganization.setActive(true);
+        userOrganizationRepo.save(userOrganization);
+    }
+
+    public void removeOrganizationView(Long organizationId, Long userId) {
+        UserOrganization userOrganization = userOrganizationRepo
+                .findByUserIdAndOrganizationId(userId, organizationId)
+                .orElseThrow(() -> new RuntimeException("User does not have access to this organization"));
+
+        userOrganization.setActive(false);
+        userOrganization.setDefaultOrganization(false);
+
+        userOrganizationRepo.save(userOrganization);
+    }
+
+    public void makeOrganizationAdmin(Long organizationId, Long userId) {
+        grantOrganizationView(organizationId, userId);
+
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        SecurityRole adminRole = securityRoleRepo.findByCode("ADMIN")
+                .orElseThrow(() -> new RuntimeException("ADMIN role not found"));
+
+        user.getRoles().add(adminRole);
+        userRepo.save(user);
+    }
+
+    public void removeOrganizationAdmin(Long organizationId, Long userId) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        boolean isSuperAdmin = user.getRoles()
+                .stream()
+                .anyMatch(role -> role.getCode().equals("SUPER_ADMIN"));
+
+        if (isSuperAdmin) {
+            throw new RuntimeException("Super admin cannot be removed");
+        }
+
+        SecurityRole adminRole = securityRoleRepo.findByCode("ADMIN")
+                .orElseThrow(() -> new RuntimeException("ADMIN role not found"));
+
+        user.getRoles().removeIf(role -> role.getId().equals(adminRole.getId()));
+        userRepo.save(user);
     }
 }

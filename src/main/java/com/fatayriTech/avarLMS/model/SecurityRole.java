@@ -45,6 +45,14 @@ public class SecurityRole {
     )
     private Set<Permission> permissions = new HashSet<>();
 
+    @Column(name = "is_global", nullable = false)
+    private Boolean global = true;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    private Organization organization;
+
+
     public SecurityRole(String name, String code, String description) {
         this.name = name;
         this.code = code;

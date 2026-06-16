@@ -2,8 +2,10 @@ package com.fatayriTech.avarLMS.response;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
+@Setter
 @Builder
 public class OrganizationDomainUserResponse {
 
@@ -18,4 +20,6 @@ public class OrganizationDomainUserResponse {
     private String lastName;
 
     private String fullName;
+
+    private Boolean hasOrganizationAccess;
 }

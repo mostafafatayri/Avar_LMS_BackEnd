@@ -4,14 +4,14 @@ import com.fatayriTech.avarLMS.dto.security.SecurityGroupDetailsDto;
 import com.fatayriTech.avarLMS.dto.security.SecurityGroupListDto;
 import com.fatayriTech.avarLMS.dto.security.SecurityGroupPermissionDto;
 import com.fatayriTech.avarLMS.dto.security.SecurityGroupUserDto;
-import com.fatayriTech.avarLMS.model.User;
 import com.fatayriTech.avarLMS.model.Permission;
 import com.fatayriTech.avarLMS.model.SecurityRole;
+import com.fatayriTech.avarLMS.model.User;
 import com.fatayriTech.avarLMS.model.UserSecurityRole;
 import com.fatayriTech.avarLMS.repository.PermissionRepo;
 import com.fatayriTech.avarLMS.repository.SecurityRoleRepo;
-import com.fatayriTech.avarLMS.repository.UserSecurityRoleRepo;
 import com.fatayriTech.avarLMS.repository.UserRepo;
+import com.fatayriTech.avarLMS.repository.UserSecurityRoleRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -90,6 +90,8 @@ public class SecurityGroupServiceImpl implements SecurityGroupService {
         SecurityRole role = securityRoleRepo.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Security group not found with id: " + groupId));
 
+        validateRoleScope(role);
+
         userRepo.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
@@ -124,10 +126,14 @@ public class SecurityGroupServiceImpl implements SecurityGroupService {
         SecurityRole role = securityRoleRepo.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Security group not found with id: " + groupId));
 
+        validateRoleScope(role);
+
         Permission permission = permissionRepo.findById(permissionId)
                 .orElseThrow(() -> new RuntimeException("Permission not found with id: " + permissionId));
 
         role.getPermissions().add(permission);
+
+        validateRoleScope(role);
         securityRoleRepo.save(role);
     }
 
@@ -136,11 +142,25 @@ public class SecurityGroupServiceImpl implements SecurityGroupService {
         SecurityRole role = securityRoleRepo.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Security group not found with id: " + groupId));
 
+        validateRoleScope(role);
+
         Permission permission = permissionRepo.findById(permissionId)
                 .orElseThrow(() -> new RuntimeException("Permission not found with id: " + permissionId));
 
         role.getPermissions().remove(permission);
+
+        validateRoleScope(role);
         securityRoleRepo.save(role);
+    }
+
+    private void validateRoleScope(SecurityRole role) {
+        if (Boolean.FALSE.equals(role.getGlobal()) && role.getOrganization() == null) {
+            throw new RuntimeException("Organization role must have organization_id");
+        }
+
+        if (Boolean.TRUE.equals(role.getGlobal()) && role.getOrganization() != null) {
+            throw new RuntimeException("Global role cannot belong to an organization");
+        }
     }
 
     private SecurityGroupListDto mapToListDto(SecurityRole role) {
