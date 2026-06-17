@@ -39,4 +39,8 @@ public class LearningPathResponse {
     private List<LearningPathItemResponse> items;
 
     private List<LearningPathAssignmentResponse> assignments;
+
+    private Long parentLearningPathId;
+    private String parentLearningPathName;
+    private Long subPathCount;
 }

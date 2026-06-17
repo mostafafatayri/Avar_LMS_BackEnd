@@ -44,6 +44,10 @@ public class LearningPath {
 
     private LocalDateTime modificationDate;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_learning_path_id")
+    private LearningPath parentLearningPath;
+
     @PrePersist
     protected void onCreate() {
         creationDate = LocalDateTime.now();

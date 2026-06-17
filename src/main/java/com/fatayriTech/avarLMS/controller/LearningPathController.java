@@ -119,4 +119,15 @@ public class LearningPathController {
                 assignmentId
         );
     }
+
+    @GetMapping("/{pathId}/sub-paths")
+    public List<LearningPathResponse> getSubPaths(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long pathId
+    ) {
+        return learningPathService.getSubPaths(
+                organizationId,
+                pathId
+        );
+    }
 }

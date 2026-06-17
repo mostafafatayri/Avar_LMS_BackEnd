@@ -51,6 +51,12 @@ public class LearningPathService {
             throw new RuntimeException("Learning path name already exists");
         }
 
+        LearningPath parent = resolveParentLearningPath(
+                organizationId,
+                request.getParentLearningPathId(),
+                null
+        );
+
         LearningPath path = LearningPath.builder()
                 .organizationId(organizationId)
                 .name(request.getName().trim())
@@ -67,6 +73,7 @@ public class LearningPathService {
                                 ? request.getApprovalRequired()
                                 : false
                 )
+                .parentLearningPath(parent)
                 .active(true)
                 .build();
 
@@ -82,6 +89,12 @@ public class LearningPathService {
 
         LearningPath path = findPath(organizationId, pathId);
 
+        LearningPath parent = resolveParentLearningPath(
+                organizationId,
+                request.getParentLearningPathId(),
+                pathId
+        );
+
         path.setName(request.getName().trim());
         path.setDescription(request.getDescription());
         path.setDurationDays(request.getDurationDays() != null ? request.getDurationDays() : 0);
@@ -96,6 +109,7 @@ public class LearningPathService {
                         ? request.getApprovalRequired()
                         : false
         );
+        path.setParentLearningPath(parent);
 
         return mapPathToResponse(learningPathRepo.save(path), true);
     }
@@ -224,6 +238,24 @@ public class LearningPathService {
         assignmentRepo.save(assignment);
     }
 
+    private LearningPath resolveParentLearningPath(
+            Long organizationId,
+            Long parentLearningPathId,
+            Long currentPathId
+    ) {
+        if (parentLearningPathId == null) {
+            return null;
+        }
+
+        if (currentPathId != null && parentLearningPathId.equals(currentPathId)) {
+            throw new RuntimeException("A learning path cannot be parent of itself");
+        }
+
+        return learningPathRepo
+                .findByIdAndOrganizationIdAndActiveTrue(parentLearningPathId, organizationId)
+                .orElseThrow(() -> new RuntimeException("Parent learning path not found"));
+    }
+
     private LearningPath findPath(Long organizationId, Long pathId) {
         return learningPathRepo
                 .findByIdAndOrganizationIdAndActiveTrue(pathId, organizationId)
@@ -286,6 +318,22 @@ public class LearningPathService {
                 .completionRequirement(path.getCompletionRequirement())
                 .status(path.getStatus())
                 .approvalRequired(path.getApprovalRequired())
+                .parentLearningPathId(
+                        path.getParentLearningPath() != null
+                                ? path.getParentLearningPath().getId()
+                                : null
+                )
+                .parentLearningPathName(
+                        path.getParentLearningPath() != null
+                                ? path.getParentLearningPath().getName()
+                                : null
+                )
+                .subPathCount(
+                        learningPathRepo.countByOrganizationIdAndParentLearningPathIdAndActiveTrue(
+                                path.getOrganizationId(),
+                                path.getId()
+                        )
+                )
                 .active(path.getActive())
                 .trainingCount(
                         itemRepo.countByOrganizationIdAndLearningPathIdAndActiveTrue(
@@ -315,7 +363,6 @@ public class LearningPathService {
                 .learningPathId(item.getLearningPath().getId())
                 .trainingCatalogueId(training.getId())
                 .trainingTitle(training.getTitle())
-                //.trainingCode(training.getCode())
                 .trainingType(training.getTrainingType())
                 .displayOrder(item.getDisplayOrder())
                 .mandatory(item.getMandatory())
@@ -342,5 +389,22 @@ public class LearningPathService {
                 .creationDate(assignment.getCreationDate())
                 .modificationDate(assignment.getModificationDate())
                 .build();
+    }
+
+    public List<LearningPathResponse> getSubPaths(
+            Long organizationId,
+            Long pathId
+    ) {
+
+        findPath(organizationId, pathId);
+
+        return learningPathRepo
+                .findByOrganizationIdAndParentLearningPathIdAndActiveTrueOrderByCreationDateDesc(
+                        organizationId,
+                        pathId
+                )
+                .stream()
+                .map(path -> mapPathToResponse(path, false))
+                .toList();
     }
 }

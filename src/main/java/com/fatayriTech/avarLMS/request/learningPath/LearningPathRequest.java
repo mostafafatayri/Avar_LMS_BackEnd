@@ -18,4 +18,7 @@ public class LearningPathRequest {
     private String status;
 
     private Boolean approvalRequired;
+
+
+    private Long parentLearningPathId;
 }
