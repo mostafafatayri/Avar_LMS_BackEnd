@@ -1,7 +1,6 @@
-package com.fatayriTech.avarLMS.response.learningPath;
+package com.fatayriTech.avarLMS.response.training;
 
-import com.fatayriTech.avarLMS.enums.LearningPathAssignmentStatus;
-import com.fatayriTech.avarLMS.enums.LearningPathAssignmentTargetType;
+import com.fatayriTech.avarLMS.enums.TrainingAssignmentStatus;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,24 +11,26 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Builder
-public class LearningPathAssignmentResponse {
+public class TrainingAssignmentResponse {
 
     private Long id;
 
     private Long organizationId;
 
-    private Long learningPathId;
-    private String learningPathName;
+    private Long employeeId;
+    private String employeeName;
+    private String employeeEmail;
 
-    private LearningPathAssignmentTargetType targetType;
-    private Long targetId;
-    private String targetName;
+    private Long trainingCatalogueId;
+    private String trainingTitle;
+    private String trainingCode;
+    private String trainingType;
 
     private Long assignedBy;
 
     private LocalDate dueDate;
 
-    private LearningPathAssignmentStatus status;
+    private TrainingAssignmentStatus status;
 
     private Integer progressPercentage;
 

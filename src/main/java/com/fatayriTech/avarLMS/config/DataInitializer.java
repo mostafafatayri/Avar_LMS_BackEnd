@@ -44,7 +44,15 @@ public class DataInitializer {
                     "POSITION_CREATE",
                     "POSITION_UPDATE",
                     "POSITION_DELETE",
-                    "ORGANIZATION_VIEW"
+                    "ORGANIZATION_VIEW",
+                    "TRAINING_ASSIGNMENT_VIEW",
+                    "TRAINING_ASSIGNMENT_CREATE",
+                    "TRAINING_ASSIGNMENT_UPDATE",
+                    "TRAINING_ASSIGNMENT_DELETE",
+                    "LEARNING_PATH_ASSIGNMENT_VIEW",
+                    "LEARNING_PATH_ASSIGNMENT_CREATE",
+                    "LEARNING_PATH_ASSIGNMENT_UPDATE",
+                    "LEARNING_PATH_ASSIGNMENT_DELETE"
             );
 
             List<String> superAdminPermissionNames = List.of(

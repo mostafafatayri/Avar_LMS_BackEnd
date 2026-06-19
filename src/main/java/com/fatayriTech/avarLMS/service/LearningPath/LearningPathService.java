@@ -1,17 +1,14 @@
 package com.fatayriTech.avarLMS.service.LearningPath;
 
 import com.fatayriTech.avarLMS.model.LearningPath;
-import com.fatayriTech.avarLMS.model.LearningPathAssignment;
 import com.fatayriTech.avarLMS.model.LearningPathItem;
 import com.fatayriTech.avarLMS.model.TrainingCatalogue;
 import com.fatayriTech.avarLMS.repository.LearningPathAssignmentRepo;
 import com.fatayriTech.avarLMS.repository.LearningPathItemRepo;
 import com.fatayriTech.avarLMS.repository.LearningPathRepo;
 import com.fatayriTech.avarLMS.repository.TrainingCatalogueRepo;
-import com.fatayriTech.avarLMS.request.learningPath.LearningPathAssignmentRequest;
 import com.fatayriTech.avarLMS.request.learningPath.LearningPathItemRequest;
 import com.fatayriTech.avarLMS.request.learningPath.LearningPathRequest;
-import com.fatayriTech.avarLMS.response.learningPath.LearningPathAssignmentResponse;
 import com.fatayriTech.avarLMS.response.learningPath.LearningPathItemResponse;
 import com.fatayriTech.avarLMS.response.learningPath.LearningPathResponse;
 import lombok.RequiredArgsConstructor;
@@ -62,17 +59,9 @@ public class LearningPathService {
                 .name(request.getName().trim())
                 .description(request.getDescription())
                 .durationDays(request.getDurationDays() != null ? request.getDurationDays() : 0)
-                .completionRequirement(
-                        request.getCompletionRequirement() != null
-                                ? request.getCompletionRequirement()
-                                : "ALL_TRAININGS"
-                )
+                .completionRequirement(request.getCompletionRequirement() != null ? request.getCompletionRequirement() : "ALL_TRAININGS")
                 .status(request.getStatus() != null ? request.getStatus() : "DRAFT")
-                .approvalRequired(
-                        request.getApprovalRequired() != null
-                                ? request.getApprovalRequired()
-                                : false
-                )
+                .approvalRequired(request.getApprovalRequired() != null ? request.getApprovalRequired() : false)
                 .parentLearningPath(parent)
                 .active(true)
                 .build();
@@ -98,17 +87,9 @@ public class LearningPathService {
         path.setName(request.getName().trim());
         path.setDescription(request.getDescription());
         path.setDurationDays(request.getDurationDays() != null ? request.getDurationDays() : 0);
-        path.setCompletionRequirement(
-                request.getCompletionRequirement() != null
-                        ? request.getCompletionRequirement()
-                        : "ALL_TRAININGS"
-        );
+        path.setCompletionRequirement(request.getCompletionRequirement() != null ? request.getCompletionRequirement() : "ALL_TRAININGS");
         path.setStatus(request.getStatus() != null ? request.getStatus() : "DRAFT");
-        path.setApprovalRequired(
-                request.getApprovalRequired() != null
-                        ? request.getApprovalRequired()
-                        : false
-        );
+        path.setApprovalRequired(request.getApprovalRequired() != null ? request.getApprovalRequired() : false);
         path.setParentLearningPath(parent);
 
         return mapPathToResponse(learningPathRepo.save(path), true);
@@ -185,57 +166,17 @@ public class LearningPathService {
         itemRepo.save(item);
     }
 
-    public LearningPathAssignmentResponse assign(
-            Long organizationId,
-            Long pathId,
-            LearningPathAssignmentRequest request
-    ) {
-        LearningPath path = findPath(organizationId, pathId);
+    public List<LearningPathResponse> getSubPaths(Long organizationId, Long pathId) {
+        findPath(organizationId, pathId);
 
-        if (request.getAssignmentType() == null || request.getAssignmentType().isBlank()) {
-            throw new RuntimeException("Assignment type is required");
-        }
-
-        if (request.getTargetId() == null) {
-            throw new RuntimeException("Target id is required");
-        }
-
-        if (assignmentRepo.existsByOrganizationIdAndLearningPathIdAndAssignmentTypeAndTargetIdAndActiveTrue(
-                organizationId,
-                pathId,
-                request.getAssignmentType(),
-                request.getTargetId()
-        )) {
-            throw new RuntimeException("This assignment already exists");
-        }
-
-        LearningPathAssignment assignment = LearningPathAssignment.builder()
-                .organizationId(organizationId)
-                .learningPath(path)
-                .assignmentType(request.getAssignmentType())
-                .targetId(request.getTargetId())
-                .status("ASSIGNED")
-                .active(true)
-                .build();
-
-        return mapAssignmentToResponse(assignmentRepo.save(assignment));
-    }
-
-    public void removeAssignment(
-            Long organizationId,
-            Long pathId,
-            Long assignmentId
-    ) {
-        LearningPathAssignment assignment = assignmentRepo
-                .findByIdAndOrganizationIdAndLearningPathIdAndActiveTrue(
-                        assignmentId,
+        return learningPathRepo
+                .findByOrganizationIdAndParentLearningPathIdAndActiveTrueOrderByCreationDateDesc(
                         organizationId,
                         pathId
                 )
-                .orElseThrow(() -> new RuntimeException("Assignment not found"));
-
-        assignment.setActive(false);
-        assignmentRepo.save(assignment);
+                .stream()
+                .map(path -> mapPathToResponse(path, false))
+                .toList();
     }
 
     private LearningPath resolveParentLearningPath(
@@ -287,7 +228,6 @@ public class LearningPathService {
             boolean includeDetails
     ) {
         List<LearningPathItemResponse> items = List.of();
-        List<LearningPathAssignmentResponse> assignments = List.of();
 
         if (includeDetails) {
             items = itemRepo
@@ -297,15 +237,6 @@ public class LearningPathService {
                     )
                     .stream()
                     .map(this::mapItemToResponse)
-                    .toList();
-
-            assignments = assignmentRepo
-                    .findByOrganizationIdAndLearningPathIdAndActiveTrueOrderByAssignedDateDesc(
-                            path.getOrganizationId(),
-                            path.getId()
-                    )
-                    .stream()
-                    .map(this::mapAssignmentToResponse)
                     .toList();
         }
 
@@ -350,7 +281,7 @@ public class LearningPathService {
                 .creationDate(path.getCreationDate())
                 .modificationDate(path.getModificationDate())
                 .items(items)
-                .assignments(assignments)
+                .assignments(List.of())
                 .build();
     }
 
@@ -371,40 +302,5 @@ public class LearningPathService {
                 .creationDate(item.getCreationDate())
                 .modificationDate(item.getModificationDate())
                 .build();
-    }
-
-    private LearningPathAssignmentResponse mapAssignmentToResponse(
-            LearningPathAssignment assignment
-    ) {
-        return LearningPathAssignmentResponse.builder()
-                .id(assignment.getId())
-                .organizationId(assignment.getOrganizationId())
-                .learningPathId(assignment.getLearningPath().getId())
-                .assignmentType(assignment.getAssignmentType())
-                .targetId(assignment.getTargetId())
-                .status(assignment.getStatus())
-                .active(assignment.getActive())
-                .assignedDate(assignment.getAssignedDate())
-                .completedDate(assignment.getCompletedDate())
-                .creationDate(assignment.getCreationDate())
-                .modificationDate(assignment.getModificationDate())
-                .build();
-    }
-
-    public List<LearningPathResponse> getSubPaths(
-            Long organizationId,
-            Long pathId
-    ) {
-
-        findPath(organizationId, pathId);
-
-        return learningPathRepo
-                .findByOrganizationIdAndParentLearningPathIdAndActiveTrueOrderByCreationDateDesc(
-                        organizationId,
-                        pathId
-                )
-                .stream()
-                .map(path -> mapPathToResponse(path, false))
-                .toList();
     }
 }

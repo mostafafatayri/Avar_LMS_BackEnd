@@ -1,8 +1,11 @@
 package com.fatayriTech.avarLMS.model;
 
+import com.fatayriTech.avarLMS.enums.LearningPathAssignmentStatus;
+import com.fatayriTech.avarLMS.enums.LearningPathAssignmentTargetType;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -18,26 +21,31 @@ public class LearningPathAssignment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "organization_id", nullable = false)
     private Long organizationId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "learning_path_id", nullable = false)
     private LearningPath learningPath;
 
-    @Column(name = "assignment_type", nullable = false)
-    private String assignmentType; // EMPLOYEE, DEPARTMENT, ROLE
+    @Enumerated(EnumType.STRING)
+    private LearningPathAssignmentTargetType targetType;
 
-    @Column(name = "target_id", nullable = false)
     private Long targetId;
 
-    private String status; // ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED
+    private Long assignedBy;
 
-    private Boolean active = true;
+    private LocalDate dueDate;
+
+    @Enumerated(EnumType.STRING)
+    private LearningPathAssignmentStatus status;
+
+    private Integer progressPercentage;
 
     private LocalDateTime assignedDate;
 
-    private LocalDateTime completedDate;
+    private LocalDateTime completionDate;
+
+    private Boolean active;
 
     private LocalDateTime creationDate;
 
@@ -48,9 +56,10 @@ public class LearningPathAssignment {
         creationDate = LocalDateTime.now();
         modificationDate = LocalDateTime.now();
 
-        if (active == null) active = true;
-        if (status == null) status = "ASSIGNED";
         if (assignedDate == null) assignedDate = LocalDateTime.now();
+        if (status == null) status = LearningPathAssignmentStatus.ASSIGNED;
+        if (progressPercentage == null) progressPercentage = 0;
+        if (active == null) active = true;
     }
 
     @PreUpdate

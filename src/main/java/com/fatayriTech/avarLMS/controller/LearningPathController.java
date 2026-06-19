@@ -1,9 +1,7 @@
 package com.fatayriTech.avarLMS.controller;
 
-import com.fatayriTech.avarLMS.request.learningPath.LearningPathAssignmentRequest;
 import com.fatayriTech.avarLMS.request.learningPath.LearningPathItemRequest;
 import com.fatayriTech.avarLMS.request.learningPath.LearningPathRequest;
-import com.fatayriTech.avarLMS.response.learningPath.LearningPathAssignmentResponse;
 import com.fatayriTech.avarLMS.response.learningPath.LearningPathItemResponse;
 import com.fatayriTech.avarLMS.response.learningPath.LearningPathResponse;
 import com.fatayriTech.avarLMS.service.LearningPath.LearningPathService;
@@ -77,12 +75,7 @@ public class LearningPathController {
             @PathVariable Long itemId,
             @RequestBody LearningPathItemRequest request
     ) {
-        return learningPathService.updateItem(
-                organizationId,
-                pathId,
-                itemId,
-                request
-        );
+        return learningPathService.updateItem(organizationId, pathId, itemId, request);
     }
 
     @DeleteMapping("/{pathId}/items/{itemId}")
@@ -91,33 +84,7 @@ public class LearningPathController {
             @PathVariable Long pathId,
             @PathVariable Long itemId
     ) {
-        learningPathService.deleteItem(
-                organizationId,
-                pathId,
-                itemId
-        );
-    }
-
-    @PostMapping("/{pathId}/assignments")
-    public LearningPathAssignmentResponse assign(
-            @RequestHeader("X-Organization-Id") Long organizationId,
-            @PathVariable Long pathId,
-            @RequestBody LearningPathAssignmentRequest request
-    ) {
-        return learningPathService.assign(organizationId, pathId, request);
-    }
-
-    @DeleteMapping("/{pathId}/assignments/{assignmentId}")
-    public void removeAssignment(
-            @RequestHeader("X-Organization-Id") Long organizationId,
-            @PathVariable Long pathId,
-            @PathVariable Long assignmentId
-    ) {
-        learningPathService.removeAssignment(
-                organizationId,
-                pathId,
-                assignmentId
-        );
+        learningPathService.deleteItem(organizationId, pathId, itemId);
     }
 
     @GetMapping("/{pathId}/sub-paths")
@@ -125,9 +92,6 @@ public class LearningPathController {
             @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long pathId
     ) {
-        return learningPathService.getSubPaths(
-                organizationId,
-                pathId
-        );
+        return learningPathService.getSubPaths(organizationId, pathId);
     }
 }
