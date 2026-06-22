@@ -17,7 +17,7 @@ import com.fatayriTech.avarLMS.request.Employees.UpdateEmployeeRequest;
 import com.fatayriTech.avarLMS.response.employee.EmployeeResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
+import com.fatayriTech.avarLMS.repository.Employee.EmployeeAddressRepo;
 import java.util.List;
 
 @Service
@@ -32,7 +32,7 @@ public class EmployeeService {
     private final NationalityRepo nationalityRepo;
     private final EmailQueueRepository emailQueueRepo;
     private final EmployeeInviteRepo employeeInviteRepo;
-
+    private final EmployeeAddressRepo employeeAddressRepo;
     public EmployeeResponse createEmployee(Long organizationId, CreateEmployeeRequest request) {
         if (employeeRepo.existsByEmailAndOrganizationId(request.getEmail(), organizationId)) {
             throw new AlreadyExistsException("Employee already exists with email: " + request.getEmail());
@@ -247,6 +247,14 @@ public class EmployeeService {
     private EmployeeResponse mapToResponse(Employee employee) {
         String fullName = buildFullName(employee);
 
+        String primaryAddress = employeeAddressRepo
+                .findByOrganizationIdAndEmployeeIdAndPrimaryAddressTrueAndActiveTrue(
+                        employee.getOrganization().getId(),
+                        employee.getId()
+                )
+                .map(EmployeeAddress::getFullAddress)
+                .orElse("-");
+
         return new EmployeeResponse(
                 employee.getId(),
                 employee.getEmployeeId(),
@@ -268,6 +276,8 @@ public class EmployeeService {
                 employee.getNationality() != null ? employee.getNationality().getId() : null,
                 employee.getNationality() != null ? employee.getNationality().getName() : null,
 
+                primaryAddress,
+
                 employee.getGender(),
                 employee.getPhoneNumber(),
                 employee.isActive(),
@@ -279,7 +289,6 @@ public class EmployeeService {
                 employee.getModifiedDate()
         );
     }
-
     private String buildFullName(Employee employee) {
         return String.join(" ",
                 employee.getFirstName() != null ? employee.getFirstName() : "",

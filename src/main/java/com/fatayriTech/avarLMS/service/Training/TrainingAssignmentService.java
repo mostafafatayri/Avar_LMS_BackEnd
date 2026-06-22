@@ -75,12 +75,11 @@ public class TrainingAssignmentService {
                 .employee(employee)
                 .trainingCatalogue(training)
                 .assignedBy(assignedBy)
-                .dueDate(request.getDueDate())
+                .validityDays(request.getValidityDays())
                 .status(TrainingAssignmentStatus.ASSIGNED)
                 .progressPercentage(0)
                 .active(true)
                 .build();
-
         return mapToResponse(trainingAssignmentRepo.save(assignment));
     }
 
@@ -132,7 +131,7 @@ public class TrainingAssignmentService {
                 .orElseThrow(() -> new RuntimeException("Assignment not found"));
     }
 
-    private void refreshOverdueAssignments(Long organizationId) {
+    /*private void refreshOverdueAssignments(Long organizationId) {
         List<TrainingAssignment> overdueAssignments =
                 trainingAssignmentRepo.findByOrganizationIdAndDueDateBeforeAndStatusInAndActiveTrue(
                         organizationId,
@@ -152,6 +151,24 @@ public class TrainingAssignmentService {
         );
 
         trainingAssignmentRepo.saveAll(overdueAssignments);
+    }*/
+    private void refreshOverdueAssignments(Long organizationId) {
+        List<TrainingAssignment> overdue =
+                trainingAssignmentRepo.findByOrganizationIdAndExpiryDateBeforeAndStatusInAndActiveTrue(
+                        organizationId,
+                        LocalDate.now(),
+                        List.of(
+                                TrainingAssignmentStatus.ASSIGNED,
+                                TrainingAssignmentStatus.IN_PROGRESS
+                        )
+                );
+
+        if (overdue.isEmpty()) {
+            return;
+        }
+
+        overdue.forEach(item -> item.setStatus(TrainingAssignmentStatus.OVERDUE));
+        trainingAssignmentRepo.saveAll(overdue);
     }
 
     private TrainingAssignmentResponse mapToResponse(TrainingAssignment assignment) {
@@ -172,7 +189,8 @@ public class TrainingAssignmentService {
                // .trainingType(training.getType())
 
                 .assignedBy(assignment.getAssignedBy())
-                .dueDate(assignment.getDueDate())
+                .validityDays(assignment.getValidityDays())
+                .expiryDate(assignment.getExpiryDate())
                 .status(assignment.getStatus())
                 .progressPercentage(assignment.getProgressPercentage())
                 .assignedDate(assignment.getAssignedDate())

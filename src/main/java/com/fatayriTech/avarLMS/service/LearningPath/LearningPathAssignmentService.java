@@ -2,16 +2,11 @@ package com.fatayriTech.avarLMS.service.LearningPath;
 
 import com.fatayriTech.avarLMS.enums.LearningPathAssignmentStatus;
 import com.fatayriTech.avarLMS.enums.LearningPathAssignmentTargetType;
-import com.fatayriTech.avarLMS.model.Department;
-import com.fatayriTech.avarLMS.model.Employee;
-import com.fatayriTech.avarLMS.model.LearningPath;
-import com.fatayriTech.avarLMS.model.LearningPathAssignment;
-import com.fatayriTech.avarLMS.model.Position;
+import com.fatayriTech.avarLMS.model.*;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.PositionRepo;
 import com.fatayriTech.avarLMS.repository.Employee.EmployeeRepo;
-import com.fatayriTech.avarLMS.repository.LearningPathAssignmentRepo;
-import com.fatayriTech.avarLMS.repository.LearningPathRepo;
+import com.fatayriTech.avarLMS.repository.*;
 import com.fatayriTech.avarLMS.request.learningPath.LearningPathAssignmentRequest;
 import com.fatayriTech.avarLMS.response.learningPath.LearningPathAssignmentResponse;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +25,9 @@ public class LearningPathAssignmentService {
     private final EmployeeRepo employeeRepo;
     private final DepartmentRepo departmentRepo;
     private final PositionRepo positionRepo;
+    private final SpecializationRepo specializationRepo;
+    private final LocationRepo locationRepo;
+    private final SubTeamRepo subTeamRepo;
 
     public List<LearningPathAssignmentResponse> getAll(Long organizationId) {
         refreshOverdueAssignments(organizationId);
@@ -81,12 +79,15 @@ public class LearningPathAssignmentService {
                 request.getTargetId()
         );
 
-        if (assignmentRepo.existsByOrganizationIdAndLearningPathIdAndTargetTypeAndTargetIdAndActiveTrue(
-                organizationId,
-                learningPathId,
-                request.getTargetType(),
-                request.getTargetId()
-        )) {
+        boolean alreadyAssigned =
+                assignmentRepo.existsByOrganizationIdAndLearningPathIdAndTargetTypeAndTargetIdAndActiveTrue(
+                        organizationId,
+                        learningPathId,
+                        request.getTargetType(),
+                        request.getTargetId()
+                );
+
+        if (alreadyAssigned) {
             throw new RuntimeException("This learning path is already assigned to this target");
         }
 
@@ -96,7 +97,7 @@ public class LearningPathAssignmentService {
                 .targetType(request.getTargetType())
                 .targetId(request.getTargetId())
                 .assignedBy(assignedBy)
-                .dueDate(request.getDueDate())
+                .validityDays(request.getValidityDays())
                 .status(LearningPathAssignmentStatus.ASSIGNED)
                 .progressPercentage(0)
                 .active(true)
@@ -157,7 +158,7 @@ public class LearningPathAssignmentService {
 
     private void refreshOverdueAssignments(Long organizationId) {
         List<LearningPathAssignment> overdue =
-                assignmentRepo.findByOrganizationIdAndDueDateBeforeAndStatusInAndActiveTrue(
+                assignmentRepo.findByOrganizationIdAndExpiryDateBeforeAndStatusInAndActiveTrue(
                         organizationId,
                         LocalDate.now(),
                         List.of(
@@ -188,9 +189,21 @@ public class LearningPathAssignmentService {
                     .findByIdAndOrganizationId(targetId, organizationId)
                     .orElseThrow(() -> new RuntimeException("Department not found"));
 
-            case ROLE -> positionRepo
+            case ROLE, JOB_TITLE -> positionRepo
                     .findByIdAndOrganizationId(targetId, organizationId)
-                    .orElseThrow(() -> new RuntimeException("Role / Position not found"));
+                    .orElseThrow(() -> new RuntimeException("Role / Job title not found"));
+
+            case SPECIALIZATION -> specializationRepo
+                    .findByIdAndOrganizationId(targetId, organizationId)
+                    .orElseThrow(() -> new RuntimeException("Specialization not found"));
+
+            case LOCATION -> locationRepo
+                    .findByIdAndOrganizationId(targetId, organizationId)
+                    .orElseThrow(() -> new RuntimeException("Location not found"));
+
+            case SUB_TEAM -> subTeamRepo
+                    .findByIdAndOrganizationId(targetId, organizationId)
+                    .orElseThrow(() -> new RuntimeException("Sub-team not found"));
         }
     }
 
@@ -211,9 +224,24 @@ public class LearningPathAssignmentService {
                         .map(Department::getName)
                         .orElse("-");
 
-                case ROLE -> positionRepo
+                case ROLE, JOB_TITLE -> positionRepo
                         .findByIdAndOrganizationId(targetId, organizationId)
                         .map(Position::getName)
+                        .orElse("-");
+
+                case SPECIALIZATION -> specializationRepo
+                        .findByIdAndOrganizationId(targetId, organizationId)
+                        .map(Specialization::getName)
+                        .orElse("-");
+
+                case LOCATION -> locationRepo
+                        .findByIdAndOrganizationId(targetId, organizationId)
+                        .map(Location::getName)
+                        .orElse("-");
+
+                case SUB_TEAM -> subTeamRepo
+                        .findByIdAndOrganizationId(targetId, organizationId)
+                        .map(SubTeam::getName)
                         .orElse("-");
             };
         } catch (Exception exception) {
@@ -241,7 +269,8 @@ public class LearningPathAssignmentService {
                         )
                 )
                 .assignedBy(assignment.getAssignedBy())
-                .dueDate(assignment.getDueDate())
+                .validityDays(assignment.getValidityDays())
+                .expiryDate(assignment.getExpiryDate())
                 .status(assignment.getStatus())
                 .progressPercentage(assignment.getProgressPercentage())
                 .assignedDate(assignment.getAssignedDate())

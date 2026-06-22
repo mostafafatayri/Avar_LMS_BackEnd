@@ -54,4 +54,9 @@ public interface EmployeeRepo extends JpaRepository<Employee, Long> {
 
     // Keep these only if you need global checks across all orgs
     Optional<Employee> findByMasterUserId(Long masterUserId);
+
+    long countByOrganizationIdAndLocationIdAndActiveTrue(
+            Long organizationId,
+            Long locationId
+    );
 }

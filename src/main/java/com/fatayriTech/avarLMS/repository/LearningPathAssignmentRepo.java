@@ -43,9 +43,18 @@ public interface LearningPathAssignmentRepo extends JpaRepository<LearningPathAs
             Long learningPathId
     );
 
-    List<LearningPathAssignment> findByOrganizationIdAndDueDateBeforeAndStatusInAndActiveTrue(
+
+    List<LearningPathAssignment> findByOrganizationIdAndExpiryDateBeforeAndStatusInAndActiveTrue(
             Long organizationId,
-            LocalDate dueDate,
+            LocalDate expiryDate,
             List<LearningPathAssignmentStatus> statuses
     );
+
+    List<LearningPathAssignment> findByOrganizationIdAndExpiryDateAndStatusInAndActiveTrue(
+            Long organizationId,
+            LocalDate expiryDate,
+            List<LearningPathAssignmentStatus> statuses
+    );
+
+
 }

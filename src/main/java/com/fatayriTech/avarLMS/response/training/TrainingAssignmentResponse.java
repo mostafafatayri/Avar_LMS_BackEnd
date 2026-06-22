@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 public class TrainingAssignmentResponse {
 
     private Long id;
-
     private Long organizationId;
 
     private Long employeeId;
@@ -28,19 +27,16 @@ public class TrainingAssignmentResponse {
 
     private Long assignedBy;
 
-    private LocalDate dueDate;
+    private Integer validityDays;
+    private LocalDate expiryDate;
 
     private TrainingAssignmentStatus status;
-
     private Integer progressPercentage;
 
     private LocalDateTime assignedDate;
-
     private LocalDateTime completionDate;
 
     private Boolean active;
-
     private LocalDateTime creationDate;
-
     private LocalDateTime modificationDate;
 }

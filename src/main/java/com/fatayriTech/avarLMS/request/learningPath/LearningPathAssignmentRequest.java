@@ -4,8 +4,6 @@ import com.fatayriTech.avarLMS.enums.LearningPathAssignmentTargetType;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
-
 @Getter
 @Setter
 public class LearningPathAssignmentRequest {
@@ -14,5 +12,5 @@ public class LearningPathAssignmentRequest {
 
     private Long targetId;
 
-    private LocalDate dueDate;
+    private Integer validityDays;
 }

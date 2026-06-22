@@ -32,7 +32,14 @@ public class TrainingAssignment {
 
     private Long assignedBy;
 
+    // OLD: keep temporarily if existing code still uses it
+    // Later we can remove dueDate fully.
     private LocalDate dueDate;
+
+    // NEW: user enters number of days, system calculates expiryDate
+    private Integer validityDays;
+
+    private LocalDate expiryDate;
 
     @Enumerated(EnumType.STRING)
     private TrainingAssignmentStatus status;
@@ -51,11 +58,17 @@ public class TrainingAssignment {
 
     @PrePersist
     protected void onCreate() {
-        this.creationDate = LocalDateTime.now();
-        this.modificationDate = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+
+        this.creationDate = now;
+        this.modificationDate = now;
 
         if (this.assignedDate == null) {
-            this.assignedDate = LocalDateTime.now();
+            this.assignedDate = now;
+        }
+
+        if (this.validityDays != null && this.expiryDate == null) {
+            this.expiryDate = this.assignedDate.toLocalDate().plusDays(this.validityDays);
         }
 
         if (this.status == null) {
@@ -74,5 +87,9 @@ public class TrainingAssignment {
     @PreUpdate
     protected void onUpdate() {
         this.modificationDate = LocalDateTime.now();
+
+        if (this.validityDays != null && this.assignedDate != null) {
+            this.expiryDate = this.assignedDate.toLocalDate().plusDays(this.validityDays);
+        }
     }
 }

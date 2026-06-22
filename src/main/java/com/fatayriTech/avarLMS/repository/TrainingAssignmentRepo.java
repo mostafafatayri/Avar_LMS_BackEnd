@@ -1,8 +1,11 @@
 package com.fatayriTech.avarLMS.repository;
 
+import com.fatayriTech.avarLMS.enums.LearningPathAssignmentStatus;
 import com.fatayriTech.avarLMS.enums.TrainingAssignmentStatus;
+import com.fatayriTech.avarLMS.model.LearningPathAssignment;
 import com.fatayriTech.avarLMS.model.TrainingAssignment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -40,9 +43,33 @@ public interface TrainingAssignmentRepo extends JpaRepository<TrainingAssignment
             TrainingAssignmentStatus status
     );
 
-    List<TrainingAssignment> findByOrganizationIdAndDueDateBeforeAndStatusInAndActiveTrue(
+    List<TrainingAssignment> findByOrganizationIdAndExpiryDateBeforeAndStatusInAndActiveTrue(
             Long organizationId,
-            LocalDate dueDate,
+            LocalDate expiryDate,
             List<TrainingAssignmentStatus> statuses
     );
+
+    List<TrainingAssignment> findByOrganizationIdAndExpiryDateAndStatusInAndActiveTrue(
+            Long organizationId,
+            LocalDate expiryDate,
+            List<TrainingAssignmentStatus> statuses
+    );
+
+    @Query("""
+    select ta from TrainingAssignment ta
+    join fetch ta.employee e
+    join fetch ta.trainingCatalogue tc
+    where ta.organizationId = :organizationId
+      and ta.expiryDate = :expiryDate
+      and ta.status in :statuses
+      and ta.active = true
+""")
+    List<TrainingAssignment> findExpiryReminderAssignments(
+            Long organizationId,
+            LocalDate expiryDate,
+            List<TrainingAssignmentStatus> statuses
+    );
+
+
+
 }

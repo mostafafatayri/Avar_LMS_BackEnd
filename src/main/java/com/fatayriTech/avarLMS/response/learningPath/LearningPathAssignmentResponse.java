@@ -27,7 +27,8 @@ public class LearningPathAssignmentResponse {
 
     private Long assignedBy;
 
-    private LocalDate dueDate;
+    private Integer validityDays;
+    private LocalDate expiryDate;
 
     private LearningPathAssignmentStatus status;
 

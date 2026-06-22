@@ -30,6 +30,8 @@ public class EmployeeResponse {
     private Long nationalityId;
     private String nationalityName;
 
+    private String primaryAddress;
+
     private Gender gender;
 
     private String phoneNumber;

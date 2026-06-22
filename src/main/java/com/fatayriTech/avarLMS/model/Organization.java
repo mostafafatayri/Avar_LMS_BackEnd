@@ -29,6 +29,10 @@ public class Organization {
 
     private String contactPhone;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "primary_contact_user_id")
+    private User primaryContactUser;
+
     private String logoUrl;
 
     @Column(nullable = false)
@@ -44,11 +48,9 @@ public class Organization {
 
     private LocalDateTime modificationDate;
 
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "domain_id")
     private Domain domain;
-
 
     @PrePersist
     protected void onCreate() {

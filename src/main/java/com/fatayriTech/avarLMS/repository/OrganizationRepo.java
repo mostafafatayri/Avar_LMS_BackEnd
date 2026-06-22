@@ -10,4 +10,7 @@ public interface OrganizationRepo extends JpaRepository<Organization, Long> {
     boolean existsByCode(String code);
 
     Optional<Organization> findByCode(String code);
+
+    Optional<Organization> findByDomainDomainIgnoreCaseAndActiveTrue(String domain);
+    Optional<Organization> findByIdAndActiveTrue(Long id );
 }

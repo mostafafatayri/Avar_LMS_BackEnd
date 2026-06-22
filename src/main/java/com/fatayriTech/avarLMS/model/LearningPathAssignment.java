@@ -34,7 +34,9 @@ public class LearningPathAssignment {
 
     private Long assignedBy;
 
-    private LocalDate dueDate;
+    private Integer validityDays;
+
+    private LocalDate expiryDate;
 
     @Enumerated(EnumType.STRING)
     private LearningPathAssignmentStatus status;
@@ -53,17 +55,38 @@ public class LearningPathAssignment {
 
     @PrePersist
     protected void onCreate() {
-        creationDate = LocalDateTime.now();
-        modificationDate = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
 
-        if (assignedDate == null) assignedDate = LocalDateTime.now();
-        if (status == null) status = LearningPathAssignmentStatus.ASSIGNED;
-        if (progressPercentage == null) progressPercentage = 0;
-        if (active == null) active = true;
+        this.creationDate = now;
+        this.modificationDate = now;
+
+        if (this.assignedDate == null) {
+            this.assignedDate = now;
+        }
+
+        if (this.validityDays != null && this.expiryDate == null) {
+            this.expiryDate = this.assignedDate.toLocalDate().plusDays(this.validityDays);
+        }
+
+        if (this.status == null) {
+            this.status = LearningPathAssignmentStatus.ASSIGNED;
+        }
+
+        if (this.progressPercentage == null) {
+            this.progressPercentage = 0;
+        }
+
+        if (this.active == null) {
+            this.active = true;
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
-        modificationDate = LocalDateTime.now();
+        this.modificationDate = LocalDateTime.now();
+
+        if (this.validityDays != null && this.assignedDate != null) {
+            this.expiryDate = this.assignedDate.toLocalDate().plusDays(this.validityDays);
+        }
     }
 }
