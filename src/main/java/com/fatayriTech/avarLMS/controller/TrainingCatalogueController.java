@@ -3,6 +3,7 @@ package com.fatayriTech.avarLMS.controller;
 import com.fatayriTech.avarLMS.request.training.TrainingCatalogueRequest;
 import com.fatayriTech.avarLMS.response.training.TrainingCatalogueResponse;
 import com.fatayriTech.avarLMS.service.Training.TrainingCatalogueService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("${api.prefix}/training-catalogue")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class TrainingCatalogueController {
 
     private final TrainingCatalogueService trainingCatalogueService;
@@ -36,6 +38,7 @@ public class TrainingCatalogueController {
             @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long id
     ) {
+        System.out.println("the user id is : "+id+" and the org id is "+organizationId);
         return trainingCatalogueService.getById(organizationId, id);
     }
 
