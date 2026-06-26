@@ -3,6 +3,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "nationalities")
 @Getter
@@ -20,4 +22,18 @@ public class Nationality {
     private String code;
 
     private boolean active = true;
+
+    //here
+    private LocalDateTime creationDate;
+    private LocalDateTime modifiedDate;
+    @PrePersist
+    protected void onCreate() {
+        creationDate = LocalDateTime.now();
+        modifiedDate = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        modifiedDate = LocalDateTime.now();
+    }
 }

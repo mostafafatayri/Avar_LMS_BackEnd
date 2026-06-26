@@ -35,8 +35,16 @@ public class Employee {
     private Department department;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sub_team_id")
+    private SubTeam subTeam;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "position_id")
     private Position position;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "specialization_id")
+    private Specialization specialization;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manager_id")
@@ -51,8 +59,6 @@ public class Employee {
 
     private String phoneNumber;
 
-
-
     private boolean active = true;
 
     private LocalDateTime creationDate;
@@ -61,14 +67,13 @@ public class Employee {
     @Column(unique = true)
     private String username;
 
-    // the company id is here the location id
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id")
     private Location location;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
-    /// ////
 
     @PrePersist
     protected void onCreate() {

@@ -1,4 +1,8 @@
 package com.fatayriTech.avarLMS.enums;
 
-public class TrainingProgressStatus {
+public enum TrainingProgressStatus {
+    NOT_STARTED,
+    IN_PROGRESS,
+    COMPLETED,
+    FAILED
 }

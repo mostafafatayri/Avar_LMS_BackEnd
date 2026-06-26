@@ -28,7 +28,19 @@ public class EmailQueue {
     private Integer retryCount = 0;
 
     private LocalDateTime lastAttemptAt;
+//here
+    private LocalDateTime creationDate;
+    private LocalDateTime modifiedDate;
+    @PrePersist
+    protected void onCreate() {
+        creationDate = LocalDateTime.now();
+        modifiedDate = LocalDateTime.now();
+    }
 
+    @PreUpdate
+    protected void onUpdate() {
+        modifiedDate = LocalDateTime.now();
+    }
 
 
 

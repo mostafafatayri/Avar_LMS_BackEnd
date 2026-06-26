@@ -4,6 +4,7 @@ import com.fatayriTech.avarLMS.request.Employees.CreateEmployeeRequest;
 import com.fatayriTech.avarLMS.request.Employees.LinkEmployeeUserRequest;
 import com.fatayriTech.avarLMS.request.Employees.UpdateEmployeeRequest;
 import com.fatayriTech.avarLMS.response.employee.EmployeeBulkUploadResponse;
+import com.fatayriTech.avarLMS.response.employee.EmployeeCompanyInfoResponse;
 import com.fatayriTech.avarLMS.response.employee.EmployeeResponse;
 import com.fatayriTech.avarLMS.service.Employee.EmployeeBulkUploadService;
 import com.fatayriTech.avarLMS.service.Employee.EmployeeService;
@@ -122,5 +123,14 @@ public class EmployeeController {
             @PathVariable Long employeeId
     ) {
         return employeeService.inviteEmployee(organizationId, employeeId);
+    }
+
+   // @PreAuthorize("hasAuthority('EMPLOYEE_VIEW')")
+    @GetMapping("/{id}/company-info")
+    public EmployeeCompanyInfoResponse getEmployeeCompanyInfo(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return employeeService.getEmployeeCompanyInfo(organizationId, id);
     }
 }

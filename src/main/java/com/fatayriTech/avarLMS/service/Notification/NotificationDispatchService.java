@@ -1,4 +1,4 @@
-package com.fatayriTech.avarLMS.service.NotificationService;
+package com.fatayriTech.avarLMS.service.Notification;
 
 import com.fatayriTech.avarLMS.enums.NotificationChannel;
 import com.fatayriTech.avarLMS.enums.NotificationStatus;
@@ -34,14 +34,9 @@ public class NotificationDispatchService {
             String subject,
             String body
     ) {
-        if (recipientEmail == null || recipientEmail.isBlank()) {
-            return;
-        }
+        if (recipientEmail == null || recipientEmail.isBlank()) return;
 
-        if (notificationEventRepo.existsByEventKeyAndChannel(
-                eventKey,
-                NotificationChannel.EMAIL
-        )) {
+        if (notificationEventRepo.existsByEventKeyAndChannel(eventKey, NotificationChannel.EMAIL)) {
             return;
         }
 
@@ -90,14 +85,9 @@ public class NotificationDispatchService {
             String message,
             String actionUrl
     ) {
-        if (recipientUserId == null && recipientEmployeeId == null) {
-            return;
-        }
+        if (recipientUserId == null && recipientEmployeeId == null) return;
 
-        if (notificationEventRepo.existsByEventKeyAndChannel(
-                eventKey,
-                NotificationChannel.IN_APP
-        )) {
+        if (notificationEventRepo.existsByEventKeyAndChannel(eventKey, NotificationChannel.IN_APP)) {
             return;
         }
 
@@ -141,18 +131,14 @@ public class NotificationDispatchService {
     }
 
     private String safeSubject(String value) {
-        if (value == null || value.isBlank()) {
-            return "AVAR LMS Notification";
-        }
-
-        return value;
+        return value == null || value.isBlank()
+                ? "AVAR LMS Notification"
+                : value;
     }
 
     private String safeBody(String value) {
-        if (value == null || value.isBlank()) {
-            return "You have a new notification in AVAR LMS.";
-        }
-
-        return value;
+        return value == null || value.isBlank()
+                ? "You have a new notification in AVAR LMS."
+                : value;
     }
 }

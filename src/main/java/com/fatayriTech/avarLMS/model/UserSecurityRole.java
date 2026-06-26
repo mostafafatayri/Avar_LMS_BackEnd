@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 
 @Entity
 @Table(name = "user_security_roles")
@@ -25,4 +27,18 @@ public class UserSecurityRole {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id")
     private SecurityRole role;
+
+    //here
+    private LocalDateTime creationDate;
+    private LocalDateTime modifiedDate;
+    @PrePersist
+    protected void onCreate() {
+        creationDate = LocalDateTime.now();
+        modifiedDate = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        modifiedDate = LocalDateTime.now();
+    }
 }

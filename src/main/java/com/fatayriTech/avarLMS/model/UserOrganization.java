@@ -2,6 +2,8 @@ package com.fatayriTech.avarLMS.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(
         name = "user_organizations",
@@ -32,4 +34,18 @@ public class UserOrganization  {
     private Boolean defaultOrganization = false;
 
     private Boolean active = true;
+
+    //here
+    private LocalDateTime creationDate;
+    private LocalDateTime modifiedDate;
+    @PrePersist
+    protected void onCreate() {
+        creationDate = LocalDateTime.now();
+        modifiedDate = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        modifiedDate = LocalDateTime.now();
+    }
 }

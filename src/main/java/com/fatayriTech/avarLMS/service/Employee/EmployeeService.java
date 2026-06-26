@@ -1,5 +1,5 @@
 package com.fatayriTech.avarLMS.service.Employee;
-
+import com.fatayriTech.avarLMS.response.employee.EmployeeCompanyInfoResponse;
 import com.fatayriTech.avarLMS.exceptions.AlreadyExistsException;
 import com.fatayriTech.avarLMS.exceptions.ResourceNotFoundException;
 import com.fatayriTech.avarLMS.model.*;
@@ -295,5 +295,39 @@ public class EmployeeService {
                 employee.getMiddleName() != null ? employee.getMiddleName() : "",
                 employee.getLastName() != null ? employee.getLastName() : ""
         ).trim().replaceAll(" +", " ");
+    }
+    public EmployeeCompanyInfoResponse getEmployeeCompanyInfo(
+            Long organizationId,
+            Long employeeId
+    ) {
+        Employee employee = employeeRepo.findByIdAndOrganizationId(employeeId, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        return EmployeeCompanyInfoResponse.builder()
+                .systemId(employee.getId())
+                .employeeId(employee.getEmployeeId())
+
+                .departmentId(employee.getDepartment() != null ? employee.getDepartment().getId() : null)
+                .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
+
+                .positionId(employee.getPosition() != null ? employee.getPosition().getId() : null)
+                .jobTitle(employee.getPosition() != null ? employee.getPosition().getName() : null)
+
+                .managerId(employee.getManager() != null ? employee.getManager().getId() : null)
+                .managerName(employee.getManager() != null ? buildFullName(employee.getManager()) : null)
+
+                .locationId(employee.getLocation() != null ? employee.getLocation().getId() : null)
+                .locationName(employee.getLocation() != null ? employee.getLocation().getName() : null)
+
+                .organizationId(employee.getOrganization() != null ? employee.getOrganization().getId() : null)
+                .organizationName(employee.getOrganization() != null ? employee.getOrganization().getName() : null)
+
+                .subTeamName(employee.getSubTeam() != null ? employee.getSubTeam().getName() : null)
+                .specializationName(employee.getSpecialization() != null ? employee.getSpecialization().getName() : null)
+
+                .employmentStatus(employee.isActive() ? "Active" : "Inactive")
+                .creationDate(employee.getCreationDate())
+                .modifiedDate(employee.getModifiedDate())
+                .build();
     }
 }

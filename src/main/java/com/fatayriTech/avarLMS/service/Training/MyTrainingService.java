@@ -1,20 +1,16 @@
 package com.fatayriTech.avarLMS.service.Training;
 
-
-
 import com.fatayriTech.avarLMS.enums.LearningPathAssignmentTargetType;
-import com.fatayriTech.avarLMS.model.Employee;
-import com.fatayriTech.avarLMS.model.LearningPathAssignment;
-import com.fatayriTech.avarLMS.model.TrainingAssignment;
+import com.fatayriTech.avarLMS.enums.TrainingDisplayItemType;
+import com.fatayriTech.avarLMS.enums.TrainingProgressStatus;
+import com.fatayriTech.avarLMS.model.*;
+import com.fatayriTech.avarLMS.repository.*;
 import com.fatayriTech.avarLMS.repository.Employee.EmployeeRepo;
-import com.fatayriTech.avarLMS.repository.LearningPathAssignmentRepo;
-import com.fatayriTech.avarLMS.repository.TrainingAssignmentRepo;
-import com.fatayriTech.avarLMS.response.myTraining.MyTrainingResponse;
+import com.fatayriTech.avarLMS.response.myTraining.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -24,10 +20,16 @@ public class MyTrainingService {
     private final TrainingAssignmentRepo trainingAssignmentRepo;
     private final LearningPathAssignmentRepo learningPathAssignmentRepo;
 
-    public List<MyTrainingResponse> getMyTrainings(
-            Long organizationId,
-            Long userId
-    ) {
+    private final TrainingCatalogueRepo trainingCatalogueRepo;
+    private final TrainingDisplayModuleRepo moduleRepo;
+    private final TrainingDisplayModuleItemRepo itemRepo;
+    private final TrainingProgressRepo trainingProgressRepo;
+
+    private final TrainingLectureRepo lectureRepo;
+    private final TrainingVideoRepo videoRepo;
+    private final TrainingQuizRepo quizRepo;
+
+    public List<MyTrainingResponse> getMyTrainings(Long organizationId, Long userId) {
         Employee employee = employeeRepo
                 .findByMasterUserIdAndOrganizationId(userId, organizationId)
                 .orElseThrow(() -> new RuntimeException("Employee profile not found for this user"));
@@ -60,10 +62,163 @@ public class MyTrainingService {
         return result;
     }
 
-    private boolean isAssignedToEmployee(
-            LearningPathAssignment assignment,
-            Employee employee
+    public MyTrainingDetailsResponse getMyTrainingDetails(
+            Long organizationId,
+            Long userId,
+            Long trainingId
     ) {
+        TrainingCatalogue training = trainingCatalogueRepo
+                .findByIdAndOrganizationIdAndActiveTrue(trainingId, organizationId)
+                .orElseThrow(() -> new RuntimeException("Training not found"));
+
+        List<TrainingDisplayModule> modules =
+                moduleRepo.findByOrganizationIdAndTrainingCatalogueIdAndActiveTrueOrderByDisplayOrderAsc(
+                        organizationId,
+                        trainingId
+                );
+
+        List<TrainingProgress> progressList =
+                trainingProgressRepo.findByOrganizationIdAndUserIdAndTrainingCatalogueId(
+                        organizationId,
+                        userId,
+                        trainingId
+                );
+
+        Map<Long, TrainingProgress> progressByItemId = new HashMap<>();
+        for (TrainingProgress progress : progressList) {
+            progressByItemId.put(progress.getModuleItemId(), progress);
+        }
+
+        Integer firstIncompleteRequiredSequence = findFirstIncompleteRequiredSequence(
+                organizationId,
+                modules,
+                progressByItemId
+        );
+
+        List<MyTrainingModuleResponse> moduleResponses = new ArrayList<>();
+
+        int totalItems = 0;
+        int completedItems = 0;
+        int sequence = 0;
+
+        for (TrainingDisplayModule module : modules) {
+            List<TrainingDisplayModuleItem> items =
+                    itemRepo.findByOrganizationIdAndModuleIdAndActiveTrueOrderByDisplayOrderAsc(
+                            organizationId,
+                            module.getId()
+                    );
+
+            List<MyTrainingModuleItemResponse> itemResponses = new ArrayList<>();
+
+            for (TrainingDisplayModuleItem item : items) {
+                sequence++;
+                totalItems++;
+
+                TrainingProgress progress = progressByItemId.get(item.getId());
+
+                boolean completed =
+                        progress != null &&
+                                progress.getStatus() == TrainingProgressStatus.COMPLETED;
+
+                if (completed) {
+                    completedItems++;
+                }
+
+                boolean locked =
+                        firstIncompleteRequiredSequence != null &&
+                                sequence > firstIncompleteRequiredSequence;
+
+                itemResponses.add(
+                        MyTrainingModuleItemResponse.builder()
+                                .id(item.getId())
+                                .moduleId(module.getId())
+                                .itemType(item.getItemType())
+                                .itemRefId(item.getItemRefId())
+                                .itemTitle(resolveItemTitle(item))
+                                .itemDescription(resolveItemDescription(item))
+                                .displayOrder(item.getDisplayOrder())
+                                .required(item.getRequired())
+                                .progressStatus(
+                                        progress != null && progress.getStatus() != null
+                                                ? progress.getStatus().name()
+                                                : TrainingProgressStatus.NOT_STARTED.name()
+                                )
+                                .progressPercentage(
+                                        progress != null && progress.getProgressPercentage() != null
+                                                ? progress.getProgressPercentage()
+                                                : 0
+                                )
+                                .completed(completed)
+                                .locked(locked)
+                                .build()
+                );
+            }
+
+            moduleResponses.add(
+                    MyTrainingModuleResponse.builder()
+                            .id(module.getId())
+                            .title(module.getTitle())
+                            .description(module.getDescription())
+                            .displayOrder(module.getDisplayOrder())
+                            .items(itemResponses)
+                            .build()
+            );
+        }
+
+        int progressPercentage = totalItems == 0
+                ? 0
+                : Math.round((completedItems * 100f) / totalItems);
+
+        return MyTrainingDetailsResponse.builder()
+                .trainingCatalogueId(training.getId())
+                .title(training.getTitle())
+                .description(training.getDescription())
+                .trainingType(training.getTrainingType())
+                .trainer(training.getTrainer())
+                .trainerEmail(training.getTrainerEmail())
+                .durationHours(training.getDurationHours())
+                .validityMonths(training.getValidityMonths())
+                .certificateEnabled(training.getCertificateEnabled())
+                .totalItems(totalItems)
+                .completedItems(completedItems)
+                .progressPercentage(progressPercentage)
+                .modules(moduleResponses)
+                .build();
+    }
+
+    private Integer findFirstIncompleteRequiredSequence(
+            Long organizationId,
+            List<TrainingDisplayModule> modules,
+            Map<Long, TrainingProgress> progressByItemId
+    ) {
+        int sequence = 0;
+
+        for (TrainingDisplayModule module : modules) {
+            List<TrainingDisplayModuleItem> items =
+                    itemRepo.findByOrganizationIdAndModuleIdAndActiveTrueOrderByDisplayOrderAsc(
+                            organizationId,
+                            module.getId()
+                    );
+
+            for (TrainingDisplayModuleItem item : items) {
+                sequence++;
+
+                TrainingProgress progress = progressByItemId.get(item.getId());
+
+                boolean completed =
+                        progress != null &&
+                                progress.getStatus() == TrainingProgressStatus.COMPLETED;
+
+                if (Boolean.TRUE.equals(item.getRequired()) && !completed) {
+                    return sequence;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isAssignedToEmployee(LearningPathAssignment assignment, Employee employee) {
         if (assignment.getTargetType() == null || assignment.getTargetId() == null) {
             return false;
         }
@@ -140,5 +295,49 @@ public class MyTrainingService {
             case SUB_TEAM -> "Sub-Team Assignment";
             case SPECIALIZATION -> "Specialization Assignment";
         };
+    }
+
+    private String resolveItemTitle(TrainingDisplayModuleItem item) {
+        if (item.getItemType() == TrainingDisplayItemType.LECTURE) {
+            return lectureRepo.findById(item.getItemRefId())
+                    .map(TrainingLecture::getTitle)
+                    .orElse("-");
+        }
+
+        if (item.getItemType() == TrainingDisplayItemType.VIDEO) {
+            return videoRepo.findById(item.getItemRefId())
+                    .map(TrainingVideo::getTitle)
+                    .orElse("-");
+        }
+
+        if (item.getItemType() == TrainingDisplayItemType.QUIZ) {
+            return quizRepo.findById(item.getItemRefId())
+                    .map(TrainingQuiz::getTitle)
+                    .orElse("-");
+        }
+
+        return "-";
+    }
+
+    private String resolveItemDescription(TrainingDisplayModuleItem item) {
+        if (item.getItemType() == TrainingDisplayItemType.LECTURE) {
+            return lectureRepo.findById(item.getItemRefId())
+                    .map(TrainingLecture::getDescription)
+                    .orElse("-");
+        }
+
+        if (item.getItemType() == TrainingDisplayItemType.VIDEO) {
+            return videoRepo.findById(item.getItemRefId())
+                    .map(TrainingVideo::getDescription)
+                    .orElse("-");
+        }
+
+        if (item.getItemType() == TrainingDisplayItemType.QUIZ) {
+            return quizRepo.findById(item.getItemRefId())
+                    .map(TrainingQuiz::getDescription)
+                    .orElse("-");
+        }
+
+        return "-";
     }
 }

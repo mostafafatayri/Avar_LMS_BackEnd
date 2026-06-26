@@ -1,18 +1,13 @@
-package com.fatayriTech.avarLMS.service.NotificationService;
+package com.fatayriTech.avarLMS.service.Notification;
 
-import com.fatayriTech.avarLMS.enums.LearningPathAssignmentStatus;
-import com.fatayriTech.avarLMS.enums.NotificationEventType;
-import com.fatayriTech.avarLMS.enums.NotificationModule;
-import jakarta.transaction.Transactional;
-import com.fatayriTech.avarLMS.enums.TrainingAssignmentStatus;
+import com.fatayriTech.avarLMS.enums.*;
 import com.fatayriTech.avarLMS.model.LearningPathAssignment;
 import com.fatayriTech.avarLMS.model.NotificationRule;
 import com.fatayriTech.avarLMS.model.TrainingAssignment;
 import com.fatayriTech.avarLMS.repository.LearningPathAssignmentRepo;
-import com.fatayriTech.avarLMS.repository.NotificationRepos.NotificationRuleRepo;
 import com.fatayriTech.avarLMS.repository.TrainingAssignmentRepo;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -22,25 +17,18 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NotificationScannerService {
 
-    private final NotificationRuleRepo notificationRuleRepo;
     private final TrainingAssignmentRepo trainingAssignmentRepo;
     private final LearningPathAssignmentRepo learningPathAssignmentRepo;
     private final NotificationDispatchService notificationDispatchService;
 
-    /*@Scheduled(cron = "0 0 8 * * *")
-    public void scanAssignmentExpiryReminders() {
-        List<NotificationRule> rules =
-                notificationRuleRepo.findByModuleAndEventTypeAndActiveTrue(
-                        NotificationModule.ASSIGNMENT,
-                        NotificationEventType.EXPIRY_REMINDER
-                );
-
-        for (NotificationRule rule : rules) {
-            scanRule(rule);
-        }
-    }*/
     @Transactional
     public void scanRule(NotificationRule rule) {
+        if (!Boolean.TRUE.equals(rule.getActive())) return;
+
+        if (rule.getEventType() != NotificationEventType.EXPIRY_REMINDER) {
+            return;
+        }
+
         if (rule.getDaysBefore() == null && rule.getDaysAfter() == null) {
             return;
         }
@@ -55,14 +43,18 @@ public class NotificationScannerService {
             targetDate = targetDate.minusDays(rule.getDaysAfter());
         }
 
-        scanTrainingAssignments(rule, targetDate);
-        scanLearningPathAssignments(rule, targetDate);
+        if (rule.getModule() == NotificationModule.ASSIGNMENT ||
+                rule.getModule() == NotificationModule.TRAINING) {
+            scanTrainingAssignments(rule, targetDate);
+        }
+
+        if (rule.getModule() == NotificationModule.ASSIGNMENT ||
+                rule.getModule() == NotificationModule.LEARNING_PATH) {
+            scanLearningPathAssignments(rule, targetDate);
+        }
     }
 
-    private void scanTrainingAssignments(
-            NotificationRule rule,
-            LocalDate targetDate
-    ) {
+    private void scanTrainingAssignments(NotificationRule rule, LocalDate targetDate) {
         List<TrainingAssignment> assignments =
                 trainingAssignmentRepo.findExpiryReminderAssignments(
                         rule.getOrganizationId(),
@@ -74,11 +66,9 @@ public class NotificationScannerService {
                 );
 
         for (TrainingAssignment assignment : assignments) {
-            String email = assignment.getEmployee().getEmail();
+            if (assignment.getEmployee() == null) continue;
 
-            if (email == null || email.isBlank()) {
-                continue;
-            }
+            String email = assignment.getEmployee().getEmail();
 
             String eventKey =
                     "ASSIGNMENT_EXPIRY:TRAINING:" +
@@ -130,10 +120,7 @@ public class NotificationScannerService {
         }
     }
 
-    private void scanLearningPathAssignments(
-            NotificationRule rule,
-            LocalDate targetDate
-    ) {
+    private void scanLearningPathAssignments(NotificationRule rule, LocalDate targetDate) {
         List<LearningPathAssignment> assignments =
                 learningPathAssignmentRepo.findByOrganizationIdAndExpiryDateAndStatusInAndActiveTrue(
                         rule.getOrganizationId(),
@@ -170,17 +157,19 @@ public class NotificationScannerService {
                     assignment.getExpiryDate()
             );
 
-            notificationDispatchService.createInAppEventIfNotExists(
-                    rule,
-                    eventKey,
-                    "LEARNING_PATH_ASSIGNMENT",
-                    assignment.getId(),
-                    null,
-                    assignment.getTargetId(),
-                    subject,
-                    body,
-                    "/my-trainings"
-            );
+            if (Boolean.TRUE.equals(rule.getChannelInApp())) {
+                notificationDispatchService.createInAppEventIfNotExists(
+                        rule,
+                        eventKey,
+                        "LEARNING_PATH_ASSIGNMENT",
+                        assignment.getId(),
+                        null,
+                        assignment.getTargetId(),
+                        subject,
+                        body,
+                        "/my-trainings"
+                );
+            }
         }
     }
 
