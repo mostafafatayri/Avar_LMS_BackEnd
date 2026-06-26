@@ -59,4 +59,18 @@ public interface EmployeeRepo extends JpaRepository<Employee, Long> {
             Long organizationId,
             Long locationId
     );
+
+    long countByDepartmentIdAndOrganizationId(
+            Long departmentId,
+            Long organizationId
+    );
+
+    List<Employee> findByDepartmentIdAndOrganizationId(
+            Long departmentId,
+            Long organizationId
+    );
+
+    long countByOrganizationId(
+            Long organizationId
+    );
 }

@@ -22,7 +22,6 @@ public class Department {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Example: MAINT, HR, OPS, IT
     @Column(nullable = false, length = 50)
     private String code;
 
@@ -35,10 +34,8 @@ public class Department {
     private boolean active = true;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manager_employee_id")
-    private Employee manager;
-
-
+    @JoinColumn(name = "head_employee_id")
+    private Employee head;
 
     private LocalDateTime creationDate;
     private LocalDateTime modifiedDate;
@@ -46,10 +43,10 @@ public class Department {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "location_id")
     private Location location;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
-
 
     @PrePersist
     protected void onCreate() {

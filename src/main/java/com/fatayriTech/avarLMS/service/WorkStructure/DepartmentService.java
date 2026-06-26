@@ -1,8 +1,10 @@
 package com.fatayriTech.avarLMS.service.WorkStructure;
 
 import com.fatayriTech.avarLMS.model.Department;
+import com.fatayriTech.avarLMS.model.Employee;
 import com.fatayriTech.avarLMS.model.Organization;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
+import com.fatayriTech.avarLMS.repository.Employee.EmployeeRepo;
 import com.fatayriTech.avarLMS.repository.OrganizationRepo;
 import com.fatayriTech.avarLMS.request.Department.CreateDepartmentRequest;
 import com.fatayriTech.avarLMS.request.Department.UpdateDepartmentRequest;
@@ -18,6 +20,7 @@ public class DepartmentService {
 
     private final DepartmentRepo departmentRepo;
     private final OrganizationRepo organizationRepo;
+    private final EmployeeRepo employeeRepo;
 
     public DepartmentResponse createDepartment(
             Long organizationId,
@@ -39,6 +42,7 @@ public class DepartmentService {
         department.setCode(request.getCode());
         department.setName(request.getName());
         department.setDescription(request.getDescription());
+        department.setHead(resolveHead(organizationId, request.getHeadEmployeeId()));
 
         return mapToResponse(departmentRepo.save(department));
     }
@@ -82,6 +86,7 @@ public class DepartmentService {
         department.setName(request.getName());
         department.setDescription(request.getDescription());
         department.setActive(request.isActive());
+        department.setHead(resolveHead(organizationId, request.getHeadEmployeeId()));
 
         return mapToResponse(departmentRepo.save(department));
     }
@@ -120,15 +125,39 @@ public class DepartmentService {
         return mapToResponse(departmentRepo.save(department));
     }
 
+    private Employee resolveHead(Long organizationId, Long headEmployeeId) {
+        if (headEmployeeId == null) {
+            return null;
+        }
+
+        return employeeRepo.findByIdAndOrganizationId(headEmployeeId, organizationId)
+                .orElseThrow(() -> new RuntimeException("Selected department head not found in this organization"));
+    }
+
     private DepartmentResponse mapToResponse(Department department) {
+        Employee head = department.getHead();
+
         return new DepartmentResponse(
                 department.getId(),
                 department.getCode(),
                 department.getName(),
                 department.getDescription(),
                 department.isActive(),
+                head != null ? head.getId() : null,
+                head != null ? buildEmployeeName(head) : null,
+                head != null ? head.getEmail() : null,
                 department.getCreationDate(),
                 department.getModifiedDate()
         );
+    }
+
+    private String buildEmployeeName(Employee employee) {
+        String fullName = String.join(" ",
+                employee.getFirstName() != null ? employee.getFirstName() : "",
+                employee.getMiddleName() != null ? employee.getMiddleName() : "",
+                employee.getLastName() != null ? employee.getLastName() : ""
+        ).trim();
+
+        return fullName.isBlank() ? employee.getEmail() : fullName;
     }
 }

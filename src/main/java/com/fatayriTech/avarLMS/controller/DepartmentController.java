@@ -3,8 +3,10 @@ package com.fatayriTech.avarLMS.controller;
 import com.fatayriTech.avarLMS.request.Department.CreateDepartmentRequest;
 import com.fatayriTech.avarLMS.request.Department.UpdateDepartmentRequest;
 import com.fatayriTech.avarLMS.response.Department.DepartmentBulkUploadResponse;
+import com.fatayriTech.avarLMS.response.Department.DepartmentDetailsResponse;
 import com.fatayriTech.avarLMS.response.Department.DepartmentResponse;
 import com.fatayriTech.avarLMS.service.WorkStructure.DepartmentBulkUploadService;
+import com.fatayriTech.avarLMS.service.WorkStructure.DepartmentDetailsService;
 import com.fatayriTech.avarLMS.service.WorkStructure.DepartmentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
 public class DepartmentController {
-
+    private final DepartmentDetailsService departmentDetailsService;
     private final DepartmentService departmentService;
     private final DepartmentBulkUploadService departmentBulkUploadService;
 
@@ -94,5 +96,17 @@ public class DepartmentController {
             @RequestParam("file") MultipartFile file
     ) {
         return departmentBulkUploadService.uploadDepartments(organizationId, file);
+    }
+
+    @PreAuthorize("hasAuthority('DEPARTMENT_VIEW')")
+    @GetMapping("/{id}/details")
+    public DepartmentDetailsResponse getDepartmentDetails(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long id
+    ) {
+        return departmentDetailsService.getDepartmentDetails(
+                organizationId,
+                id
+        );
     }
 }
