@@ -1,4 +1,4 @@
-package com.fatayriTech.avarLMS.response.Department;
+package com.fatayriTech.avarLMS.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -7,11 +7,9 @@ import java.util.List;
 
 @Getter
 @AllArgsConstructor
-public class DepartmentBulkUploadResponse {
-
+public class SubTeamBulkUploadResponse {
     private int totalRows;
     private int insertedRows;
     private int failedRows;
-
-    private List<DepartmentBulkUploadFailedRow> failedRecords;
+    private List<SubTeamBulkUploadFailedRow> failedRecords;
 }

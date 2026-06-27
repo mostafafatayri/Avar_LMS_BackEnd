@@ -6,7 +6,7 @@ import lombok.Data;
 public class EmployeeRoleRequest {
     private String name;
     private Long departmentId;
-    private String seniority;
+    private Long seniorityLevelId;
     private String description;
     private Boolean active;
 }

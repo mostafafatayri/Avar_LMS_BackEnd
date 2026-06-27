@@ -37,8 +37,9 @@ public class EmployeeRole {
     private String name;
 
     // Example: Junior, Mid, Senior, Lead, Manager
-    @Column(length = 50)
-    private String seniority;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seniority_level_id")
+    private SeniorityLevel seniorityLevel;
 
     @Column(columnDefinition = "TEXT")
     private String description;

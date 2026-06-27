@@ -1,10 +1,9 @@
 package com.fatayriTech.avarLMS.config;
 
-import com.fatayriTech.avarLMS.model.Permission;
-import com.fatayriTech.avarLMS.model.SecurityRole;
-import com.fatayriTech.avarLMS.model.User;
+import com.fatayriTech.avarLMS.model.*;
 import com.fatayriTech.avarLMS.repository.PermissionRepo;
 import com.fatayriTech.avarLMS.repository.SecurityRoleRepo;
+import com.fatayriTech.avarLMS.repository.SeniorityLevelRepo;
 import com.fatayriTech.avarLMS.repository.UserRepo;
 import lombok.AllArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
@@ -24,7 +23,62 @@ public class DataInitializer {
     private final SecurityRoleRepo roleRepo;
     private final UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
+    private final SeniorityLevelRepo seniorityLevelRepo;
 
+    private void seedSeniorityLevels(Organization organization) {
+        Long organizationId = organization.getId();
+
+        if (!seniorityLevelRepo.findByOrganizationIdOrderByDisplayOrderAsc(organizationId).isEmpty()) {
+            return;
+        }
+
+        List<SeniorityLevel> levels = List.of(
+                SeniorityLevel.builder()
+                        .organization(organization)
+                        .name("Intern")
+                        .displayOrder(1)
+                        .description("Entry-level position, typically for students or recent graduates.")
+                        .active(true)
+                        .build(),
+                SeniorityLevel.builder()
+                        .organization(organization)
+                        .name("Junior")
+                        .displayOrder(2)
+                        .description("Early-career position with limited experience.")
+                        .active(true)
+                        .build(),
+                SeniorityLevel.builder()
+                        .organization(organization)
+                        .name("Mid-Level")
+                        .displayOrder(3)
+                        .description("Professional with solid experience and skills.")
+                        .active(true)
+                        .build(),
+                SeniorityLevel.builder()
+                        .organization(organization)
+                        .name("Senior")
+                        .displayOrder(4)
+                        .description("Experienced professional, may lead projects or small teams.")
+                        .active(true)
+                        .build(),
+                SeniorityLevel.builder()
+                        .organization(organization)
+                        .name("Lead")
+                        .displayOrder(5)
+                        .description("Leads teams or major functions.")
+                        .active(true)
+                        .build(),
+                SeniorityLevel.builder()
+                        .organization(organization)
+                        .name("Executive")
+                        .displayOrder(6)
+                        .description("Strategic leadership and decision-making role.")
+                        .active(true)
+                        .build()
+        );
+
+        seniorityLevelRepo.saveAll(levels);
+    }
     @Bean
     CommandLineRunner initDefaultUsersAndRoles() {
         return args -> {

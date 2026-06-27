@@ -1,10 +1,13 @@
 package com.fatayriTech.avarLMS.controller;
 
 import com.fatayriTech.avarLMS.request.EmployeeRoleRequest;
+import com.fatayriTech.avarLMS.response.EmployeeRoleBulkUploadResponse;
 import com.fatayriTech.avarLMS.response.EmployeeRoleResponse;
+import com.fatayriTech.avarLMS.service.WorkStructure.EmployeeRoleBulkUploadService;
 import com.fatayriTech.avarLMS.service.WorkStructure.EmployeeRoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -14,7 +17,7 @@ import java.util.List;
 public class EmployeeRoleController {
 
     private final EmployeeRoleService employeeRoleService;
-
+    private final EmployeeRoleBulkUploadService employeeRoleBulkUploadService;
     @GetMapping
     public List<EmployeeRoleResponse> getAll(
             @RequestHeader("X-Organization-Id") Long organizationId
@@ -69,5 +72,13 @@ public class EmployeeRoleController {
             @PathVariable Long id
     ) {
         employeeRoleService.delete(organizationId, id);
+    }
+
+    @PostMapping("/bulk-upload")
+    public EmployeeRoleBulkUploadResponse bulkUploadRoles(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return employeeRoleBulkUploadService.uploadRoles(organizationId, file);
     }
 }

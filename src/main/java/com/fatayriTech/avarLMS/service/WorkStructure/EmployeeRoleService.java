@@ -3,9 +3,11 @@ package com.fatayriTech.avarLMS.service.WorkStructure;
 import com.fatayriTech.avarLMS.model.Department;
 import com.fatayriTech.avarLMS.model.EmployeeRole;
 import com.fatayriTech.avarLMS.model.Organization;
+import com.fatayriTech.avarLMS.model.SeniorityLevel;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
 import com.fatayriTech.avarLMS.repository.EmployeeRoleRepo;
 import com.fatayriTech.avarLMS.repository.OrganizationRepo;
+import com.fatayriTech.avarLMS.repository.SeniorityLevelRepo;
 import com.fatayriTech.avarLMS.request.EmployeeRoleRequest;
 import com.fatayriTech.avarLMS.response.EmployeeRoleResponse;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ public class EmployeeRoleService {
     private final EmployeeRoleRepo employeeRoleRepo;
     private final DepartmentRepo departmentRepo;
     private final OrganizationRepo organizationRepo;
+    private final SeniorityLevelRepo seniorityLevelRepo;
 
     public List<EmployeeRoleResponse> getAll(Long organizationId) {
         return employeeRoleRepo.findByOrganizationId(organizationId)
@@ -49,7 +52,13 @@ public class EmployeeRoleService {
                         organizationId
                 )
                 .orElseThrow(() -> new RuntimeException("Department not found"));
+        SeniorityLevel seniorityLevel = null;
 
+        if (request.getSeniorityLevelId() != null) {
+            seniorityLevel = seniorityLevelRepo
+                    .findByIdAndOrganizationId(request.getSeniorityLevelId(), organizationId)
+                    .orElseThrow(() -> new RuntimeException("Seniority level not found"));
+        }
         if (employeeRoleRepo.existsByNameIgnoreCaseAndDepartmentIdAndOrganizationId(
                 request.getName(),
                 request.getDepartmentId(),
@@ -64,7 +73,7 @@ public class EmployeeRoleService {
         employeeRole.setOrganization(organization);
         employeeRole.setName(request.getName());
         employeeRole.setDepartment(department);
-        employeeRole.setSeniority(request.getSeniority());
+        employeeRole.setSeniorityLevel(seniorityLevel);
         employeeRole.setDescription(request.getDescription());
         employeeRole.setActive(
                 request.getActive() == null || request.getActive()
@@ -88,7 +97,13 @@ public class EmployeeRoleService {
                         organizationId
                 )
                 .orElseThrow(() -> new RuntimeException("Department not found"));
+        SeniorityLevel seniorityLevel = null;
 
+        if (request.getSeniorityLevelId() != null) {
+            seniorityLevel = seniorityLevelRepo
+                    .findByIdAndOrganizationId(request.getSeniorityLevelId(), organizationId)
+                    .orElseThrow(() -> new RuntimeException("Seniority level not found"));
+        }
         if (
                 (!employeeRole.getName().equalsIgnoreCase(request.getName())
                         || !employeeRole.getDepartment().getId()
@@ -108,7 +123,7 @@ public class EmployeeRoleService {
 
         employeeRole.setName(request.getName());
         employeeRole.setDepartment(department);
-        employeeRole.setSeniority(request.getSeniority());
+        employeeRole.setSeniorityLevel(seniorityLevel);
         employeeRole.setDescription(request.getDescription());
 
         if (request.getActive() != null) {
@@ -169,7 +184,9 @@ public class EmployeeRoleService {
                 .name(employeeRole.getName())
                 .departmentId(employeeRole.getDepartment().getId())
                 .departmentName(employeeRole.getDepartment().getName())
-                .seniority(employeeRole.getSeniority())
+                .seniorityLevelId(employeeRole.getSeniorityLevel() != null ? employeeRole.getSeniorityLevel().getId() : null)
+                .seniorityLevelName(employeeRole.getSeniorityLevel() != null ? employeeRole.getSeniorityLevel().getName() : null)
+                .seniorityDisplayOrder(employeeRole.getSeniorityLevel() != null ? employeeRole.getSeniorityLevel().getDisplayOrder() : null)
                 .description(employeeRole.getDescription())
                 .active(employeeRole.isActive())
                 .build();

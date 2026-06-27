@@ -12,7 +12,9 @@ public class EmployeeRoleResponse {
     private Long departmentId;
     private String departmentName;
 
-    private String seniority;
+    private Long seniorityLevelId;
+    private String seniorityLevelName;
+    private Integer seniorityDisplayOrder;
     private String description;
     private boolean active;
 }

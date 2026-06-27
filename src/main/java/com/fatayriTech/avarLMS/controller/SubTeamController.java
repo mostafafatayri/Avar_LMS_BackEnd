@@ -1,10 +1,13 @@
 package com.fatayriTech.avarLMS.controller;
 
 import com.fatayriTech.avarLMS.request.SubTeamRequest;
+import com.fatayriTech.avarLMS.response.SubTeamBulkUploadResponse;
 import com.fatayriTech.avarLMS.response.SubTeamResponse;
+import com.fatayriTech.avarLMS.service.WorkStructure.SubTeamBulkUploadService;
 import com.fatayriTech.avarLMS.service.WorkStructure.SubTeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -14,6 +17,7 @@ import java.util.List;
 public class SubTeamController {
 
     private final SubTeamService subTeamService;
+    private final SubTeamBulkUploadService subTeamBulkUploadService;
 
     @GetMapping
     public List<SubTeamResponse> getAll(
@@ -69,5 +73,13 @@ public class SubTeamController {
             @PathVariable Long id
     ) {
         subTeamService.delete(organizationId, id);
+    }
+
+    @PostMapping("/bulk-upload")
+    public SubTeamBulkUploadResponse bulkUploadSubTeams(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return subTeamBulkUploadService.uploadSubTeams(organizationId, file);
     }
 }

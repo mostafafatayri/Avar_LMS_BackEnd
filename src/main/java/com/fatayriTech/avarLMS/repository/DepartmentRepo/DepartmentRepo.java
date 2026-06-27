@@ -20,4 +20,6 @@ public interface DepartmentRepo extends JpaRepository<Department, Long> {
 
     // Keep only if needed globally
     Optional<Department> findByCode(String code);
+
+
 }
