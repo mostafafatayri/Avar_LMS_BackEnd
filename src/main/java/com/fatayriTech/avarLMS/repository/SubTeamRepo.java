@@ -33,4 +33,10 @@ public interface SubTeamRepo extends JpaRepository<SubTeam, Long> {
             @Param("organizationId") Long organizationId,
             @Param("departmentId") Long departmentId
     );
+
+    Optional<SubTeam> findByNameIgnoreCaseAndDepartmentIdAndOrganizationId(
+            String name,
+            Long departmentId,
+            Long organizationId
+    );
 }

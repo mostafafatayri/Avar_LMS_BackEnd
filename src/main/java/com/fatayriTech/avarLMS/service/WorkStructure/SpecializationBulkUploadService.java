@@ -2,12 +2,14 @@ package com.fatayriTech.avarLMS.service.WorkStructure;
 
 import com.fatayriTech.avarLMS.model.Department;
 import com.fatayriTech.avarLMS.model.Organization;
-import com.fatayriTech.avarLMS.model.Position;
+import com.fatayriTech.avarLMS.model.Specialization;
+import com.fatayriTech.avarLMS.model.SubTeam;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
-import com.fatayriTech.avarLMS.repository.DepartmentRepo.PositionRepo;
 import com.fatayriTech.avarLMS.repository.OrganizationRepo;
-import com.fatayriTech.avarLMS.response.position.PositionBulkUploadFailedRow;
-import com.fatayriTech.avarLMS.response.position.PositionBulkUploadResponse;
+import com.fatayriTech.avarLMS.repository.SpecializationRepo;
+import com.fatayriTech.avarLMS.repository.SubTeamRepo;
+import com.fatayriTech.avarLMS.response.SpecializationBulkUploadFailedRow;
+import com.fatayriTech.avarLMS.response.SpecializationBulkUploadResponse;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.stereotype.Service;
@@ -19,13 +21,14 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class PositionBulkUploadService {
+public class SpecializationBulkUploadService {
 
-    private final PositionRepo positionRepo;
+    private final SpecializationRepo specializationRepo;
     private final DepartmentRepo departmentRepo;
+    private final SubTeamRepo subTeamRepo;
     private final OrganizationRepo organizationRepo;
 
-    public PositionBulkUploadResponse uploadPositions(
+    public SpecializationBulkUploadResponse uploadSpecializations(
             Long organizationId,
             MultipartFile file
     ) {
@@ -33,7 +36,7 @@ public class PositionBulkUploadService {
         int insertedRows = 0;
         int failedRows = 0;
 
-        List<PositionBulkUploadFailedRow> failedRecords = new ArrayList<>();
+        List<SpecializationBulkUploadFailedRow> failedRecords = new ArrayList<>();
 
         Organization organization = organizationRepo.findById(organizationId)
                 .orElseThrow(() -> new RuntimeException("Organization not found"));
@@ -53,28 +56,22 @@ public class PositionBulkUploadService {
 
                 totalRows++;
 
-                String code = getCellValue(row.getCell(0));
-                String name = getCellValue(row.getCell(1));
-                String departmentCode = getCellValue(row.getCell(2));
+                String name = getCellValue(row.getCell(0));
+                String departmentCode = getCellValue(row.getCell(1));
+                String subTeamName = getCellValue(row.getCell(2));
                 String description = getCellValue(row.getCell(3));
                 String activeValue = getCellValue(row.getCell(4));
 
                 try {
-                    if (code == null || code.isBlank()) {
-                        failedRows++;
-                        failedRecords.add(failed(i, name, code, "Position code is required."));
-                        continue;
-                    }
-
                     if (name == null || name.isBlank()) {
                         failedRows++;
-                        failedRecords.add(failed(i, name, code, "Job title is required."));
+                        failedRecords.add(failed(i, name, departmentCode, "Specialization name is required."));
                         continue;
                     }
 
                     if (departmentCode == null || departmentCode.isBlank()) {
                         failedRows++;
-                        failedRecords.add(failed(i, name, code, "Department code is required."));
+                        failedRecords.add(failed(i, name, departmentCode, "Department code is required."));
                         continue;
                     }
 
@@ -87,43 +84,59 @@ public class PositionBulkUploadService {
                         failedRecords.add(failed(
                                 i,
                                 name,
-                                code,
+                                departmentCode,
                                 "Department code '" + departmentCode + "' was not found."
                         ));
                         continue;
                     }
 
-                    if (positionRepo.existsByCodeAndOrganizationId(code.trim(), organizationId)) {
+                    if (specializationRepo.existsByNameIgnoreCaseAndDepartmentIdAndOrganizationId(
+                            name.trim(),
+                            department.getId(),
+                            organizationId
+                    )) {
                         failedRows++;
                         failedRecords.add(failed(
                                 i,
                                 name,
-                                code,
-                                "Position code already exists in this organization."
+                                departmentCode,
+                                "Specialization already exists in this department."
                         ));
                         continue;
                     }
 
-                    if (positionRepo.existsByNameAndOrganizationId(name.trim(), organizationId)) {
-                        failedRows++;
-                        failedRecords.add(failed(
-                                i,
-                                name,
-                                code,
-                                "Job title already exists in this organization."
-                        ));
-                        continue;
+                    SubTeam subTeam = null;
+
+                    if (subTeamName != null && !subTeamName.isBlank()) {
+                        subTeam = subTeamRepo
+                                .findByNameIgnoreCaseAndDepartmentIdAndOrganizationId(
+                                        subTeamName.trim(),
+                                        department.getId(),
+                                        organizationId
+                                )
+                                .orElse(null);
+
+                        if (subTeam == null) {
+                            failedRows++;
+                            failedRecords.add(failed(
+                                    i,
+                                    name,
+                                    departmentCode,
+                                    "Sub-Team '" + subTeamName + "' was not found in this department."
+                            ));
+                            continue;
+                        }
                     }
 
-                    Position position = new Position();
-                    position.setOrganization(organization);
-                    position.setCode(code.trim().toUpperCase().replace(" ", "_"));
-                    position.setName(name.trim());
-                    position.setDepartment(department);
-                    position.setDescription(description);
-                    position.setActive(parseActive(activeValue));
+                    Specialization specialization = new Specialization();
+                    specialization.setOrganization(organization);
+                    specialization.setName(name.trim());
+                    specialization.setDepartment(department);
+                    specialization.setSubTeam(subTeam);
+                    specialization.setDescription(description);
+                    specialization.setActive(parseActive(activeValue));
 
-                    positionRepo.save(position);
+                    specializationRepo.save(specialization);
                     insertedRows++;
 
                 } catch (Exception e) {
@@ -131,7 +144,7 @@ public class PositionBulkUploadService {
                     failedRecords.add(failed(
                             i,
                             name,
-                            code,
+                            departmentCode,
                             e.getMessage() != null
                                     ? e.getMessage()
                                     : "Unexpected error while processing this row."
@@ -140,10 +153,10 @@ public class PositionBulkUploadService {
             }
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to upload positions file", e);
+            throw new RuntimeException("Failed to upload specializations file", e);
         }
 
-        return new PositionBulkUploadResponse(
+        return new SpecializationBulkUploadResponse(
                 totalRows,
                 insertedRows,
                 failedRows,
@@ -151,16 +164,16 @@ public class PositionBulkUploadService {
         );
     }
 
-    private PositionBulkUploadFailedRow failed(
+    private SpecializationBulkUploadFailedRow failed(
             int rowIndex,
             String name,
-            String code,
+            String departmentCode,
             String reason
     ) {
-        return new PositionBulkUploadFailedRow(
+        return new SpecializationBulkUploadFailedRow(
                 rowIndex + 1,
                 name,
-                code,
+                departmentCode,
                 reason
         );
     }
@@ -179,25 +192,18 @@ public class PositionBulkUploadService {
     }
 
     private boolean isEmptyRow(Row row) {
-        if (row == null) {
-            return true;
-        }
+        if (row == null) return true;
 
         for (int i = 0; i <= 4; i++) {
             String value = getCellValue(row.getCell(i));
-
-            if (value != null && !value.isBlank()) {
-                return false;
-            }
+            if (value != null && !value.isBlank()) return false;
         }
 
         return true;
     }
 
     private String getCellValue(Cell cell) {
-        if (cell == null) {
-            return null;
-        }
+        if (cell == null) return null;
 
         DataFormatter formatter = new DataFormatter();
         String value = formatter.formatCellValue(cell);

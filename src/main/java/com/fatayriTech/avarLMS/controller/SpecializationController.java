@@ -5,7 +5,9 @@ import com.fatayriTech.avarLMS.response.SpecializationResponse;
 import com.fatayriTech.avarLMS.service.WorkStructure.SpecializationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
+import com.fatayriTech.avarLMS.response.SpecializationBulkUploadResponse;
+import com.fatayriTech.avarLMS.service.WorkStructure.SpecializationBulkUploadService;
+import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
@@ -14,7 +16,7 @@ import java.util.List;
 public class SpecializationController {
 
     private final SpecializationService specializationService;
-
+    private final SpecializationBulkUploadService specializationBulkUploadService;
     @GetMapping
     public List<SpecializationResponse> getAll(
             @RequestHeader("X-Organization-Id") Long organizationId
@@ -69,5 +71,13 @@ public class SpecializationController {
             @PathVariable Long id
     ) {
         specializationService.delete(organizationId, id);
+    }
+
+    @PostMapping("/bulk-upload")
+    public SpecializationBulkUploadResponse bulkUpload(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return specializationBulkUploadService.uploadSpecializations(organizationId, file);
     }
 }
