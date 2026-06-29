@@ -1,7 +1,9 @@
 package com.fatayriTech.avarLMS.controller;
 
 import com.fatayriTech.avarLMS.request.training.TrainingCatalogueRequest;
+import com.fatayriTech.avarLMS.response.training.TrainingCatalogueBulkUploadResponse;
 import com.fatayriTech.avarLMS.response.training.TrainingCatalogueResponse;
+import com.fatayriTech.avarLMS.service.Training.TrainingCatalogueBulkUploadService;
 import com.fatayriTech.avarLMS.service.Training.TrainingCatalogueService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import java.util.List;
 public class TrainingCatalogueController {
 
     private final TrainingCatalogueService trainingCatalogueService;
+    private final TrainingCatalogueBulkUploadService trainingCatalogueBulkUploadService;
 
     @PostMapping
     public TrainingCatalogueResponse create(
@@ -38,7 +41,6 @@ public class TrainingCatalogueController {
             @RequestHeader("X-Organization-Id") Long organizationId,
             @PathVariable Long id
     ) {
-        System.out.println("the user id is : "+id+" and the org id is "+organizationId);
         return trainingCatalogueService.getById(organizationId, id);
     }
 
@@ -59,7 +61,6 @@ public class TrainingCatalogueController {
         trainingCatalogueService.delete(organizationId, id);
     }
 
-
     @PostMapping("/{id}/material")
     public TrainingCatalogueResponse uploadMaterial(
             @RequestHeader("X-Organization-Id") Long organizationId,
@@ -69,4 +70,11 @@ public class TrainingCatalogueController {
         return trainingCatalogueService.uploadMaterial(organizationId, id, file);
     }
 
+    @PostMapping("/bulk-upload")
+    public TrainingCatalogueBulkUploadResponse bulkUpload(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return trainingCatalogueBulkUploadService.uploadTrainings(organizationId, file);
+    }
 }

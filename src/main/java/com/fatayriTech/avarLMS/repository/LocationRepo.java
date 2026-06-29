@@ -34,4 +34,9 @@ public interface LocationRepo extends JpaRepository<Location, Long> {
     long countByOrganizationIdAndActiveTrue(Long organizationId);
 
     long countByOrganizationIdAndActiveFalse(Long organizationId);
+
+    Optional<Location> findByOrganizationIdAndCodeIgnoreCase(
+            Long organizationId,
+            String code
+    );
 }

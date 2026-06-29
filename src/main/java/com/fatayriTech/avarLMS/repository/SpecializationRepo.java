@@ -17,4 +17,10 @@ public interface SpecializationRepo extends JpaRepository<Specialization, Long> 
             Long departmentId,
             Long organizationId
     );
+
+    Optional<Specialization> findByNameIgnoreCaseAndDepartmentIdAndOrganizationId(
+            String name,
+            Long departmentId,
+            Long organizationId
+    );
 }

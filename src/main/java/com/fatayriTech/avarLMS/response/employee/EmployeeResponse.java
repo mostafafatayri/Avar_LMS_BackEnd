@@ -3,7 +3,9 @@ package com.fatayriTech.avarLMS.response.employee;
 import com.fatayriTech.avarLMS.enums.Gender;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-
+import com.fatayriTech.avarLMS.enums.AcademyStatus;
+import com.fatayriTech.avarLMS.enums.EmployeeType;
+import com.fatayriTech.avarLMS.enums.EmploymentStatus;
 import java.time.LocalDateTime;
 
 @Getter
@@ -39,7 +41,21 @@ public class EmployeeResponse {
 
     private Long appUserId;
     private String username;
+    private Long subTeamId;
+    private String subTeamName;
 
+    private Long specializationId;
+    private String specializationName;
+
+    private Long seniorityLevelId;
+    private String seniorityLevelName;
+
+    private Long locationId;
+    private String locationName;
+
+    private EmploymentStatus employmentStatus;
+    private AcademyStatus academyStatus;
+    private EmployeeType employeeType;
     private LocalDateTime creationDate;
     private LocalDateTime modifiedDate;
 }

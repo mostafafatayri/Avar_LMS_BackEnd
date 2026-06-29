@@ -1,5 +1,8 @@
 package com.fatayriTech.avarLMS.model;
 
+import com.fatayriTech.avarLMS.enums.AcademyStatus;
+import com.fatayriTech.avarLMS.enums.EmployeeType;
+import com.fatayriTech.avarLMS.enums.EmploymentStatus;
 import com.fatayriTech.avarLMS.enums.Gender;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -75,6 +78,18 @@ public class Employee {
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seniority_level_id")
+    private SeniorityLevel seniorityLevel;
+
+    @Enumerated(EnumType.STRING)
+    private EmploymentStatus employmentStatus = EmploymentStatus.ACTIVE;
+
+    @Enumerated(EnumType.STRING)
+    private AcademyStatus academyStatus = AcademyStatus.NOT_APPLICABLE;
+
+    @Enumerated(EnumType.STRING)
+    private EmployeeType employeeType = EmployeeType.EXISTING_EMPLOYEE;
     @PrePersist
     protected void onCreate() {
         creationDate = LocalDateTime.now();

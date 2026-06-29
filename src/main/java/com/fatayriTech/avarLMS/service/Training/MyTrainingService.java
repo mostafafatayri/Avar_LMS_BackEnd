@@ -173,7 +173,7 @@ public class MyTrainingService {
                 .trainingCatalogueId(training.getId())
                 .title(training.getTitle())
                 .description(training.getDescription())
-                .trainingType(training.getTrainingType())
+                //.trainingType(training.getTrainingType())
                 .trainer(training.getTrainer())
                 .trainerEmail(training.getTrainerEmail())
                 .durationHours(training.getDurationHours())

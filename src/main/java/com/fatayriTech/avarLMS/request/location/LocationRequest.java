@@ -9,6 +9,8 @@ public class LocationRequest {
 
     private String code;
 
+    private String description;
+
     private String region;
 
     private String country;

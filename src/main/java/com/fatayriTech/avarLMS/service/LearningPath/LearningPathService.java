@@ -294,7 +294,7 @@ public class LearningPathService {
                 .learningPathId(item.getLearningPath().getId())
                 .trainingCatalogueId(training.getId())
                 .trainingTitle(training.getTitle())
-                .trainingType(training.getTrainingType())
+               // .trainingType(training.getTrainingType())
                 .displayOrder(item.getDisplayOrder())
                 .mandatory(item.getMandatory())
                 .lockUntilPreviousCompleted(item.getLockUntilPreviousCompleted())

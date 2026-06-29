@@ -15,6 +15,8 @@ public class LocationResponse {
 
     private String code;
 
+    private String description;
+
     private String region;
 
     private String country;

@@ -40,6 +40,9 @@ public class Location {
     @Column(nullable = false)
     private Boolean active = true;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     private LocalDateTime creationDate;
 
     private LocalDateTime modificationDate;

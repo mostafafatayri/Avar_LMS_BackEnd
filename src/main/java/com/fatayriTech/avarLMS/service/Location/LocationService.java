@@ -127,6 +127,9 @@ public class LocationService {
         location.setAddress(
                 request.getAddress() == null ? null : request.getAddress().trim()
         );
+        location.setDescription(
+                request.getDescription() == null ? null : request.getDescription().trim()
+        );
         location.setLatitude(request.getLatitude());
         location.setLongitude(request.getLongitude());
         location.setActive(request.getActive() == null || request.getActive());
@@ -153,6 +156,7 @@ public class LocationService {
                 .active(location.getActive())
                 .organizationId(organizationId)
                 .employeeCount(employeeCount)
+                .description(location.getDescription())
                 .creationDate(location.getCreationDate())
                 .modificationDate(location.getModificationDate())
                 .build();
