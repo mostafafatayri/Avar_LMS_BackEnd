@@ -1,5 +1,6 @@
 package com.fatayriTech.avarLMS.config;
 
+import com.fatayriTech.avarLMS.enums.DataScope;
 import com.fatayriTech.avarLMS.model.Permission;
 import com.fatayriTech.avarLMS.model.SecurityRole;
 import com.fatayriTech.avarLMS.model.SeniorityLevel;
@@ -124,21 +125,33 @@ public class DataInitializer {
 
             List<String> managerPermissions = List.of(
                     "EMPLOYEE_VIEW",
+
+                    "DEPARTMENT_VIEW",
+                    "POSITION_VIEW",
+                    "SUB_TEAM_VIEW",
+                    "SPECIALIZATION_VIEW",
+                    "SENIORITY_LEVEL_VIEW",
+                    "LOCATION_VIEW",
+
                     "TRAINING_CATALOGUE_VIEW",
                     "TRAINING_ASSIGNMENT_VIEW",
-                    "LEARNING_PATH_ASSIGNMENT_VIEW"
+                    "LEARNING_PATH_ASSIGNMENT_VIEW",
+                    "MY_TRAINING_VIEW"
+
             );
 
             List<String> employeePermissions = List.of(
                     "EMPLOYEE_VIEW",
                     "MY_TRAINING_VIEW",
-                    "TRAINING_CATALOGUE_VIEW"
+                    "TRAINING_CATALOGUE_VIEW",
+                    "DEPARTMENT_VIEW"
             );
 
             SecurityRole superAdminRole = createOrUpdateRole(
                     "SUPER_ADMIN",
                     "Super Administrator",
                     "Full platform access including role and permission management",
+                    DataScope.ALL,
                     createPermissions(superAdminPermissions)
             );
 
@@ -146,6 +159,7 @@ public class DataInitializer {
                     "ADMIN",
                     "Administrator",
                     "Full LMS access except role creation and permission management",
+                    DataScope.ALL,
                     createPermissions(adminAndHrPermissions)
             );
 
@@ -153,6 +167,7 @@ public class DataInitializer {
                     "HR",
                     "HR",
                     "HR full access except role creation and permission management",
+                    DataScope.ALL,
                     createPermissions(adminAndHrPermissions)
             );
 
@@ -160,6 +175,7 @@ public class DataInitializer {
                     "MANAGER",
                     "Manager",
                     "Manager access to own team only",
+                    DataScope.TEAM,
                     createPermissions(managerPermissions)
             );
 
@@ -167,6 +183,7 @@ public class DataInitializer {
                     "EMPLOYEE",
                     "Employee",
                     "Employee access to own profile and own trainings only",
+                    DataScope.SELF,
                     createPermissions(employeePermissions)
             );
 
@@ -214,6 +231,7 @@ public class DataInitializer {
             String code,
             String name,
             String description,
+            DataScope dataScope,
             Set<Permission> permissions
     ) {
         SecurityRole role = roleRepo.findByCode(code)
@@ -227,6 +245,7 @@ public class DataInitializer {
         role.setDescription(description);
         role.setActive(true);
         role.setGlobal(true);
+        role.setDataScope(dataScope);
         role.setOrganization(null);
         role.setPermissions(permissions);
 

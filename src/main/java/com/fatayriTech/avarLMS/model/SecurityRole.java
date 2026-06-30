@@ -2,7 +2,7 @@ package com.fatayriTech.avarLMS.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-
+import com.fatayriTech.avarLMS.enums.DataScope;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -52,6 +52,9 @@ public class SecurityRole {
     @JoinColumn(name = "organization_id")
     private Organization organization;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "data_scope", nullable = false)
+    private DataScope dataScope = DataScope.ALL;
 
     public SecurityRole(String name, String code, String description) {
         this.name = name;

@@ -1,5 +1,7 @@
 package com.fatayriTech.avarLMS.controller;
-
+import com.fatayriTech.avarLMS.response.learningPath.LearningPathBulkUploadResponse;
+import com.fatayriTech.avarLMS.service.LearningPath.LearningPathBulkUploadService;
+import org.springframework.web.multipart.MultipartFile;
 import com.fatayriTech.avarLMS.request.learningPath.LearningPathItemRequest;
 import com.fatayriTech.avarLMS.request.learningPath.LearningPathRequest;
 import com.fatayriTech.avarLMS.response.learningPath.LearningPathItemResponse;
@@ -18,7 +20,7 @@ import java.util.List;
 public class LearningPathController {
 
     private final LearningPathService learningPathService;
-
+    private final LearningPathBulkUploadService learningPathBulkUploadService;
     @GetMapping
     public List<LearningPathResponse> getAll(
             @RequestHeader("X-Organization-Id") Long organizationId
@@ -93,5 +95,20 @@ public class LearningPathController {
             @PathVariable Long pathId
     ) {
         return learningPathService.getSubPaths(organizationId, pathId);
+    }
+
+    @PostMapping("/bulk-upload")
+    public LearningPathBulkUploadResponse bulkUpload(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return learningPathBulkUploadService.uploadLearningPaths(organizationId, file);
+    }
+
+    @GetMapping("/parents")
+    public List<LearningPathResponse> getParentLearningPaths(
+            @RequestHeader("X-Organization-Id") Long organizationId
+    ) {
+        return learningPathService.getParentLearningPaths(organizationId);
     }
 }

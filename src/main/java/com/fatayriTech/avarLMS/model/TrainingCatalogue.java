@@ -73,6 +73,15 @@ public class TrainingCatalogue {
     private LocalDateTime creationDate;
     private LocalDateTime modificationDate;
 
+    private String joinToken;
+
+    @Column(length = 1000)
+    private String joinUrl;
+
+    private LocalDateTime joinUrlGeneratedAt;
+
+    private Long joinUrlGeneratedBy;
+
     @PrePersist
     protected void onCreate() {
         creationDate = LocalDateTime.now();

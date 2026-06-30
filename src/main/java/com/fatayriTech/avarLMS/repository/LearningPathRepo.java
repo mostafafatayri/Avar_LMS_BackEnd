@@ -32,4 +32,8 @@ public interface LearningPathRepo extends JpaRepository<LearningPath, Long> {
             Long organizationId,
             Long parentLearningPathId
     );
+
+    List<LearningPath> findByOrganizationIdAndParentLearningPathIsNullAndActiveTrueOrderByCreationDateDesc(
+            Long organizationId
+    );
 }

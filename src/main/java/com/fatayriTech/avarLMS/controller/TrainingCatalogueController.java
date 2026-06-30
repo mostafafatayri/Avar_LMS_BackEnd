@@ -77,4 +77,14 @@ public class TrainingCatalogueController {
     ) {
         return trainingCatalogueBulkUploadService.uploadTrainings(organizationId, file);
     }
+
+    @PatchMapping("/{id}/generate-join-url")
+    public TrainingCatalogueResponse generateJoinUrl(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long id
+    ) {
+        return trainingCatalogueService.generateJoinUrl(organizationId, id, userId);
+    }
+
 }

@@ -255,6 +255,10 @@ public class TrainingCatalogueService {
                 .autoRenew(training.getAutoRenew())
                 .renewalLeadTimeDays(training.getRenewalLeadTimeDays())
                 .active(training.getActive())
+                .joinToken(training.getJoinToken())
+                .joinUrl(training.getJoinUrl())
+                .joinUrlGeneratedAt(training.getJoinUrlGeneratedAt())
+                .joinUrlGeneratedBy(training.getJoinUrlGeneratedBy())
                 .creationDate(training.getCreationDate())
                 .modificationDate(training.getModificationDate())
                 .build();
@@ -266,5 +270,30 @@ public class TrainingCatalogueService {
                 employee.getMiddleName() != null ? employee.getMiddleName() : "",
                 employee.getLastName() != null ? employee.getLastName() : ""
         ).trim().replaceAll(" +", " ");
+    }
+
+    public TrainingCatalogueResponse generateJoinUrl(
+            Long organizationId,
+            Long trainingId,
+            Long generatedBy
+    ) {
+        TrainingCatalogue training = trainingCatalogueRepo
+                .findByIdAndOrganizationIdAndActiveTrue(trainingId, organizationId)
+                .orElseThrow(() -> new RuntimeException("Training not found"));
+
+        if (!Boolean.TRUE.equals(training.getHasLiveSession())) {
+            throw new RuntimeException("This training is not marked as a live session");
+        }
+
+        String token = java.util.UUID.randomUUID().toString();
+
+        String joinUrl = "http://localhost:5173/live-sessions/join/" + token;
+
+        training.setJoinToken(token);
+        training.setJoinUrl(joinUrl);
+        training.setJoinUrlGeneratedAt(java.time.LocalDateTime.now());
+        training.setJoinUrlGeneratedBy(generatedBy);
+
+        return mapToResponse(trainingCatalogueRepo.save(training));
     }
 }

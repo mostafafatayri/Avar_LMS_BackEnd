@@ -1,5 +1,8 @@
 package com.fatayriTech.avarLMS.response.learningPath;
 
+import com.fatayriTech.avarLMS.enums.LearningPathCompletionType;
+import com.fatayriTech.avarLMS.enums.LearningPathModule;
+import com.fatayriTech.avarLMS.enums.LearningPathStatus;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -22,7 +25,7 @@ public class LearningPathResponse {
 
     private String completionRequirement;
 
-    private String status;
+
 
     private Boolean approvalRequired;
 
@@ -43,4 +46,10 @@ public class LearningPathResponse {
     private Long parentLearningPathId;
     private String parentLearningPathName;
     private Long subPathCount;
+    private LearningPathModule module;
+    private LearningPathCompletionType completionType;
+    private Integer completionPercentage;
+    private Integer completionCount;
+    private Boolean lockingEnabled;
+    private LearningPathStatus status;
 }

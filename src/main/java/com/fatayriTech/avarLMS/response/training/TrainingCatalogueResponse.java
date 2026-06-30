@@ -52,7 +52,10 @@ public class TrainingCatalogueResponse {
     private Integer renewalLeadTimeDays;
 
     private Boolean active;
-
+    private String joinToken;
+    private String joinUrl;
+    private LocalDateTime joinUrlGeneratedAt;
+    private Long joinUrlGeneratedBy;
     private LocalDateTime creationDate;
     private LocalDateTime modificationDate;
 }

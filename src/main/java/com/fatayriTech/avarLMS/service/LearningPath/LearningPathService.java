@@ -1,5 +1,8 @@
 package com.fatayriTech.avarLMS.service.LearningPath;
 
+import com.fatayriTech.avarLMS.enums.LearningPathCompletionType;
+import com.fatayriTech.avarLMS.enums.LearningPathModule;
+import com.fatayriTech.avarLMS.enums.LearningPathStatus;
 import com.fatayriTech.avarLMS.model.LearningPath;
 import com.fatayriTech.avarLMS.model.LearningPathItem;
 import com.fatayriTech.avarLMS.model.TrainingCatalogue;
@@ -38,6 +41,16 @@ public class LearningPathService {
         return mapPathToResponse(path, true);
     }
 
+    public List<LearningPathResponse> getParentLearningPaths(Long organizationId) {
+        return learningPathRepo
+                .findByOrganizationIdAndParentLearningPathIsNullAndActiveTrueOrderByCreationDateDesc(
+                        organizationId
+                )
+                .stream()
+                .map(path -> mapPathToResponse(path, false))
+                .toList();
+    }
+
     public LearningPathResponse create(Long organizationId, LearningPathRequest request) {
         validatePathRequest(request);
 
@@ -54,13 +67,30 @@ public class LearningPathService {
                 null
         );
 
+        LearningPathCompletionType completionType =
+                request.getCompletionType() != null
+                        ? request.getCompletionType()
+                        : LearningPathCompletionType.PERCENTAGE;
+
         LearningPath path = LearningPath.builder()
                 .organizationId(organizationId)
+                .module(request.getModule() != null ? request.getModule() : LearningPathModule.L_AND_D)
                 .name(request.getName().trim())
                 .description(request.getDescription())
                 .durationDays(request.getDurationDays() != null ? request.getDurationDays() : 0)
-                .completionRequirement(request.getCompletionRequirement() != null ? request.getCompletionRequirement() : "ALL_TRAININGS")
-                .status(request.getStatus() != null ? request.getStatus() : "DRAFT")
+                .completionType(completionType)
+                .completionPercentage(
+                        completionType == LearningPathCompletionType.PERCENTAGE
+                                ? request.getCompletionPercentage()
+                                : null
+                )
+                .completionCount(
+                        completionType == LearningPathCompletionType.SPECIFIC_COUNT
+                                ? request.getCompletionCount()
+                                : null
+                )
+                .lockingEnabled(Boolean.TRUE.equals(request.getLockingEnabled()))
+                .status(request.getStatus() != null ? request.getStatus() : LearningPathStatus.DRAFT)
                 .approvalRequired(request.getApprovalRequired() != null ? request.getApprovalRequired() : false)
                 .parentLearningPath(parent)
                 .active(true)
@@ -84,11 +114,27 @@ public class LearningPathService {
                 pathId
         );
 
+        LearningPathCompletionType completionType =
+                request.getCompletionType() != null
+                        ? request.getCompletionType()
+                        : LearningPathCompletionType.PERCENTAGE;
+
+        path.setModule(request.getModule() != null ? request.getModule() : LearningPathModule.L_AND_D);
         path.setName(request.getName().trim());
         path.setDescription(request.getDescription());
         path.setDurationDays(request.getDurationDays() != null ? request.getDurationDays() : 0);
-        path.setCompletionRequirement(request.getCompletionRequirement() != null ? request.getCompletionRequirement() : "ALL_TRAININGS");
-        path.setStatus(request.getStatus() != null ? request.getStatus() : "DRAFT");
+        path.setCompletionType(completionType);
+
+        if (completionType == LearningPathCompletionType.PERCENTAGE) {
+            path.setCompletionPercentage(request.getCompletionPercentage());
+            path.setCompletionCount(null);
+        } else {
+            path.setCompletionPercentage(null);
+            path.setCompletionCount(request.getCompletionCount());
+        }
+
+        path.setLockingEnabled(Boolean.TRUE.equals(request.getLockingEnabled()));
+        path.setStatus(request.getStatus() != null ? request.getStatus() : LearningPathStatus.DRAFT);
         path.setApprovalRequired(request.getApprovalRequired() != null ? request.getApprovalRequired() : false);
         path.setParentLearningPath(parent);
 
@@ -179,6 +225,108 @@ public class LearningPathService {
                 .toList();
     }
 
+    private LearningPathResponse mapPathToResponse(
+            LearningPath path,
+            boolean includeDetails
+    ) {
+        List<LearningPathItemResponse> items = List.of();
+
+        if (includeDetails) {
+            items = itemRepo
+                    .findByOrganizationIdAndLearningPathIdAndActiveTrueOrderByDisplayOrderAsc(
+                            path.getOrganizationId(),
+                            path.getId()
+                    )
+                    .stream()
+                    .map(this::mapItemToResponse)
+                    .toList();
+        }
+
+        return LearningPathResponse.builder()
+                .id(path.getId())
+                .organizationId(path.getOrganizationId())
+                .module(path.getModule())
+                .name(path.getName())
+                .description(path.getDescription())
+                .durationDays(path.getDurationDays())
+                .completionType(path.getCompletionType())
+                .completionPercentage(path.getCompletionPercentage())
+                .completionCount(path.getCompletionCount())
+                .lockingEnabled(path.getLockingEnabled())
+                .status(path.getStatus())
+                .approvalRequired(path.getApprovalRequired())
+                .parentLearningPathId(
+                        path.getParentLearningPath() != null
+                                ? path.getParentLearningPath().getId()
+                                : null
+                )
+                .parentLearningPathName(
+                        path.getParentLearningPath() != null
+                                ? path.getParentLearningPath().getName()
+                                : null
+                )
+                .subPathCount(
+                        learningPathRepo.countByOrganizationIdAndParentLearningPathIdAndActiveTrue(
+                                path.getOrganizationId(),
+                                path.getId()
+                        )
+                )
+                .active(path.getActive())
+                .trainingCount(calculateTotalTrainingCount(path))
+                .assignmentCount(
+                        assignmentRepo.countByOrganizationIdAndLearningPathIdAndActiveTrue(
+                                path.getOrganizationId(),
+                                path.getId()
+                        )
+                )
+                .creationDate(path.getCreationDate())
+                .modificationDate(path.getModificationDate())
+                .items(items)
+                .assignments(List.of())
+                .build();
+    }
+
+    private long calculateTotalTrainingCount(LearningPath path) {
+        long directCount = itemRepo.countByOrganizationIdAndLearningPathIdAndActiveTrue(
+                path.getOrganizationId(),
+                path.getId()
+        );
+
+        long subPathTrainingCount = learningPathRepo
+                .findByOrganizationIdAndParentLearningPathIdAndActiveTrueOrderByCreationDateDesc(
+                        path.getOrganizationId(),
+                        path.getId()
+                )
+                .stream()
+                .mapToLong(subPath ->
+                        itemRepo.countByOrganizationIdAndLearningPathIdAndActiveTrue(
+                                subPath.getOrganizationId(),
+                                subPath.getId()
+                        )
+                )
+                .sum();
+
+        return directCount + subPathTrainingCount;
+    }
+
+    private LearningPathItemResponse mapItemToResponse(LearningPathItem item) {
+        TrainingCatalogue training = item.getTrainingCatalogue();
+
+        return LearningPathItemResponse.builder()
+                .id(item.getId())
+                .organizationId(item.getOrganizationId())
+                .learningPathId(item.getLearningPath().getId())
+                .trainingCatalogueId(training.getId())
+                .trainingTitle(training.getTitle())
+                .displayOrder(item.getDisplayOrder())
+                .mandatory(item.getMandatory())
+                .lockUntilPreviousCompleted(item.getLockUntilPreviousCompleted())
+                .active(item.getActive())
+                .creationDate(item.getCreationDate())
+                .modificationDate(item.getModificationDate())
+                .build();
+    }
+
     private LearningPath resolveParentLearningPath(
             Long organizationId,
             Long parentLearningPathId,
@@ -221,86 +369,26 @@ public class LearningPathService {
         if (request.getName() == null || request.getName().isBlank()) {
             throw new RuntimeException("Learning path name is required");
         }
-    }
 
-    private LearningPathResponse mapPathToResponse(
-            LearningPath path,
-            boolean includeDetails
-    ) {
-        List<LearningPathItemResponse> items = List.of();
+        LearningPathCompletionType completionType =
+                request.getCompletionType() != null
+                        ? request.getCompletionType()
+                        : LearningPathCompletionType.PERCENTAGE;
 
-        if (includeDetails) {
-            items = itemRepo
-                    .findByOrganizationIdAndLearningPathIdAndActiveTrueOrderByDisplayOrderAsc(
-                            path.getOrganizationId(),
-                            path.getId()
-                    )
-                    .stream()
-                    .map(this::mapItemToResponse)
-                    .toList();
+        if (completionType == LearningPathCompletionType.PERCENTAGE) {
+            if (request.getCompletionPercentage() == null) {
+                throw new RuntimeException("Completion percentage is required");
+            }
+
+            if (request.getCompletionPercentage() < 1 || request.getCompletionPercentage() > 100) {
+                throw new RuntimeException("Completion percentage must be between 1 and 100");
+            }
         }
 
-        return LearningPathResponse.builder()
-                .id(path.getId())
-                .organizationId(path.getOrganizationId())
-                .name(path.getName())
-                .description(path.getDescription())
-                .durationDays(path.getDurationDays())
-                .completionRequirement(path.getCompletionRequirement())
-                .status(path.getStatus())
-                .approvalRequired(path.getApprovalRequired())
-                .parentLearningPathId(
-                        path.getParentLearningPath() != null
-                                ? path.getParentLearningPath().getId()
-                                : null
-                )
-                .parentLearningPathName(
-                        path.getParentLearningPath() != null
-                                ? path.getParentLearningPath().getName()
-                                : null
-                )
-                .subPathCount(
-                        learningPathRepo.countByOrganizationIdAndParentLearningPathIdAndActiveTrue(
-                                path.getOrganizationId(),
-                                path.getId()
-                        )
-                )
-                .active(path.getActive())
-                .trainingCount(
-                        itemRepo.countByOrganizationIdAndLearningPathIdAndActiveTrue(
-                                path.getOrganizationId(),
-                                path.getId()
-                        )
-                )
-                .assignmentCount(
-                        assignmentRepo.countByOrganizationIdAndLearningPathIdAndActiveTrue(
-                                path.getOrganizationId(),
-                                path.getId()
-                        )
-                )
-                .creationDate(path.getCreationDate())
-                .modificationDate(path.getModificationDate())
-                .items(items)
-                .assignments(List.of())
-                .build();
-    }
-
-    private LearningPathItemResponse mapItemToResponse(LearningPathItem item) {
-        TrainingCatalogue training = item.getTrainingCatalogue();
-
-        return LearningPathItemResponse.builder()
-                .id(item.getId())
-                .organizationId(item.getOrganizationId())
-                .learningPathId(item.getLearningPath().getId())
-                .trainingCatalogueId(training.getId())
-                .trainingTitle(training.getTitle())
-               // .trainingType(training.getTrainingType())
-                .displayOrder(item.getDisplayOrder())
-                .mandatory(item.getMandatory())
-                .lockUntilPreviousCompleted(item.getLockUntilPreviousCompleted())
-                .active(item.getActive())
-                .creationDate(item.getCreationDate())
-                .modificationDate(item.getModificationDate())
-                .build();
+        if (completionType == LearningPathCompletionType.SPECIFIC_COUNT) {
+            if (request.getCompletionCount() == null || request.getCompletionCount() < 1) {
+                throw new RuntimeException("Completion count is required");
+            }
+        }
     }
 }

@@ -1,24 +1,26 @@
 package com.fatayriTech.avarLMS.service.Employee;
-import com.fatayriTech.avarLMS.enums.AcademyStatus;
-import com.fatayriTech.avarLMS.enums.EmployeeType;
-import com.fatayriTech.avarLMS.enums.EmploymentStatus;
-import com.fatayriTech.avarLMS.repository.*;
-import com.fatayriTech.avarLMS.response.employee.EmployeeCompanyInfoResponse;
+
+import com.fatayriTech.avarLMS.enums.*;
 import com.fatayriTech.avarLMS.exceptions.AlreadyExistsException;
 import com.fatayriTech.avarLMS.exceptions.ResourceNotFoundException;
 import com.fatayriTech.avarLMS.model.*;
+import com.fatayriTech.avarLMS.repository.*;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.PositionRepo;
+import com.fatayriTech.avarLMS.repository.Employee.EmployeeAddressRepo;
 import com.fatayriTech.avarLMS.repository.Employee.EmployeeInviteRepo;
 import com.fatayriTech.avarLMS.repository.Employee.EmployeeRepo;
 import com.fatayriTech.avarLMS.repository.SendingEmails.EmailQueueRepository;
 import com.fatayriTech.avarLMS.request.Employees.CreateEmployeeRequest;
 import com.fatayriTech.avarLMS.request.Employees.LinkEmployeeUserRequest;
 import com.fatayriTech.avarLMS.request.Employees.UpdateEmployeeRequest;
+import com.fatayriTech.avarLMS.response.employee.EmployeeCompanyInfoResponse;
 import com.fatayriTech.avarLMS.response.employee.EmployeeResponse;
+import com.fatayriTech.avarLMS.service.security.CurrentEmployeeService;
+import com.fatayriTech.avarLMS.service.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import com.fatayriTech.avarLMS.repository.Employee.EmployeeAddressRepo;
+
 import java.util.List;
 
 @Service
@@ -38,6 +40,8 @@ public class EmployeeService {
     private final SpecializationRepo specializationRepo;
     private final SeniorityLevelRepo seniorityLevelRepo;
     private final LocationRepo locationRepo;
+    private final CurrentEmployeeService currentEmployeeService;
+
     public EmployeeResponse createEmployee(Long organizationId, CreateEmployeeRequest request) {
         if (employeeRepo.existsByEmailAndOrganizationId(request.getEmail(), organizationId)) {
             throw new AlreadyExistsException("Employee already exists with email: " + request.getEmail());
@@ -55,6 +59,7 @@ public class EmployeeService {
 
         Position position = positionRepo.findByIdAndOrganizationId(request.getPositionId(), organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Position not found"));
+
         SubTeam subTeam = null;
         if (request.getSubTeamId() != null) {
             subTeam = subTeamRepo.findByIdAndOrganizationId(request.getSubTeamId(), organizationId)
@@ -104,7 +109,6 @@ public class EmployeeService {
         employee.setNationality(nationality);
         employee.setGender(request.getGender());
         employee.setPhoneNumber(request.getPhoneNumber());
-        employee.setActive(true);
         employee.setSubTeam(subTeam);
         employee.setSpecialization(specialization);
         employee.setSeniorityLevel(seniorityLevel);
@@ -120,19 +124,40 @@ public class EmployeeService {
                 request.getEmployeeType() == null ? EmployeeType.EXISTING_EMPLOYEE : request.getEmployeeType()
         );
         employee.setActive(employee.getEmploymentStatus() == EmploymentStatus.ACTIVE);
+
         return mapToResponse(employeeRepo.save(employee));
     }
 
     public List<EmployeeResponse> getAllEmployees(Long organizationId) {
-        return employeeRepo.findByOrganizationId(organizationId)
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+        DataScope scope = resolveScope();
+
+        if (scope == DataScope.ALL) {
+            return employeeRepo.findByOrganizationId(organizationId)
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        Employee currentEmployee = currentEmployeeService.getCurrentEmployee(organizationId);
+
+        if (scope == DataScope.TEAM) {
+            return employeeRepo.findByManagerIdAndOrganizationId(
+                            currentEmployee.getId(),
+                            organizationId
+                    )
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        return List.of(mapToResponse(currentEmployee));
     }
 
     public EmployeeResponse getEmployeeById(Long organizationId, Long id) {
         Employee employee = employeeRepo.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        validateEmployeeAccess(organizationId, employee);
 
         return mapToResponse(employee);
     }
@@ -140,6 +165,8 @@ public class EmployeeService {
     public EmployeeResponse updateEmployee(Long organizationId, Long id, UpdateEmployeeRequest request) {
         Employee employee = employeeRepo.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        validateEmployeeWriteAccess(organizationId, employee);
 
         if (!employee.getEmail().equalsIgnoreCase(request.getEmail())
                 && employeeRepo.existsByEmailAndOrganizationId(request.getEmail(), organizationId)) {
@@ -169,6 +196,30 @@ public class EmployeeService {
                     .orElseThrow(() -> new ResourceNotFoundException("Nationality not found"));
         }
 
+        SubTeam subTeam = null;
+        if (request.getSubTeamId() != null) {
+            subTeam = subTeamRepo.findByIdAndOrganizationId(request.getSubTeamId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Sub-Team not found"));
+        }
+
+        Specialization specialization = null;
+        if (request.getSpecializationId() != null) {
+            specialization = specializationRepo.findByIdAndOrganizationId(request.getSpecializationId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Specialization not found"));
+        }
+
+        SeniorityLevel seniorityLevel = null;
+        if (request.getSeniorityLevelId() != null) {
+            seniorityLevel = seniorityLevelRepo.findByIdAndOrganizationId(request.getSeniorityLevelId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Seniority level not found"));
+        }
+
+        Location location = null;
+        if (request.getLocationId() != null) {
+            location = locationRepo.findByIdAndOrganizationId(request.getLocationId(), organizationId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
+        }
+
         employee.setEmployeeId(request.getEmployeeId());
         employee.setEmail(request.getEmail());
         employee.setFirstName(request.getFirstName());
@@ -180,7 +231,21 @@ public class EmployeeService {
         employee.setNationality(nationality);
         employee.setGender(request.getGender());
         employee.setPhoneNumber(request.getPhoneNumber());
+        employee.setSubTeam(subTeam);
+        employee.setSpecialization(specialization);
+        employee.setSeniorityLevel(seniorityLevel);
+        employee.setLocation(location);
         employee.setActive(request.isActive());
+
+        employee.setEmploymentStatus(
+                request.getEmploymentStatus() == null ? EmploymentStatus.ACTIVE : request.getEmploymentStatus()
+        );
+        employee.setAcademyStatus(
+                request.getAcademyStatus() == null ? AcademyStatus.NOT_APPLICABLE : request.getAcademyStatus()
+        );
+        employee.setEmployeeType(
+                request.getEmployeeType() == null ? EmployeeType.EXISTING_EMPLOYEE : request.getEmployeeType()
+        );
 
         return mapToResponse(employeeRepo.save(employee));
     }
@@ -189,13 +254,19 @@ public class EmployeeService {
         Employee employee = employeeRepo.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
 
+        validateEmployeeWriteAccess(organizationId, employee);
+
         employee.setActive(false);
+        employee.setEmploymentStatus(EmploymentStatus.INACTIVE);
+
         return mapToResponse(employeeRepo.save(employee));
     }
 
     public EmployeeResponse linkEmployeeToUser(Long organizationId, Long employeeId, LinkEmployeeUserRequest request) {
         Employee employee = employeeRepo.findByIdAndOrganizationId(employeeId, organizationId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        validateEmployeeWriteAccess(organizationId, employee);
 
         employeeRepo.findByUsernameAndOrganizationId(request.getUsername(), organizationId)
                 .ifPresent(existingEmployee -> {
@@ -224,6 +295,8 @@ public class EmployeeService {
         Employee employee = employeeRepo.findByIdAndOrganizationId(employeeId, organizationId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
+        validateEmployeeWriteAccess(organizationId, employee);
+
         employee.setMasterUserId(null);
         employee.setUsername(null);
 
@@ -231,7 +304,18 @@ public class EmployeeService {
     }
 
     public List<EmployeeResponse> getEmployeesByManager(Long organizationId, Long managerId) {
-        return employeeRepo.findByManagerIdAndOrganizationId(managerId, organizationId)
+        DataScope scope = resolveScope();
+
+        if (scope == DataScope.ALL) {
+            return employeeRepo.findByManagerIdAndOrganizationId(managerId, organizationId)
+                    .stream()
+                    .map(this::mapToResponse)
+                    .toList();
+        }
+
+        Employee currentEmployee = currentEmployeeService.getCurrentEmployee(organizationId);
+
+        return employeeRepo.findByManagerIdAndOrganizationId(currentEmployee.getId(), organizationId)
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -241,12 +325,16 @@ public class EmployeeService {
         Employee employee = employeeRepo.findByIdAndOrganizationId(id, organizationId)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
 
+        validateEmployeeWriteAccess(organizationId, employee);
+
         employeeRepo.delete(employee);
     }
 
     public EmployeeResponse inviteEmployee(Long organizationId, Long employeeId) {
         Employee employee = employeeRepo.findByIdAndOrganizationId(employeeId, organizationId)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
+
+        validateEmployeeWriteAccess(organizationId, employee);
 
         if (employee.getUsername() != null && !employee.getUsername().isBlank()) {
             throw new RuntimeException("Employee is already mapped to a user");
@@ -286,6 +374,80 @@ public class EmployeeService {
         return mapToResponse(employee);
     }
 
+    public EmployeeCompanyInfoResponse getEmployeeCompanyInfo(Long organizationId, Long employeeId) {
+        Employee employee = employeeRepo.findByIdAndOrganizationId(employeeId, organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
+
+        validateEmployeeAccess(organizationId, employee);
+
+        return EmployeeCompanyInfoResponse.builder()
+                .systemId(employee.getId())
+                .employeeId(employee.getEmployeeId())
+                .departmentId(employee.getDepartment() != null ? employee.getDepartment().getId() : null)
+                .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
+                .positionId(employee.getPosition() != null ? employee.getPosition().getId() : null)
+                .jobTitle(employee.getPosition() != null ? employee.getPosition().getName() : null)
+                .managerId(employee.getManager() != null ? employee.getManager().getId() : null)
+                .managerName(employee.getManager() != null ? buildFullName(employee.getManager()) : null)
+                .locationId(employee.getLocation() != null ? employee.getLocation().getId() : null)
+                .locationName(employee.getLocation() != null ? employee.getLocation().getName() : null)
+                .organizationId(employee.getOrganization() != null ? employee.getOrganization().getId() : null)
+                .organizationName(employee.getOrganization() != null ? employee.getOrganization().getName() : null)
+                .subTeamName(employee.getSubTeam() != null ? employee.getSubTeam().getName() : null)
+                .specializationName(employee.getSpecialization() != null ? employee.getSpecialization().getName() : null)
+                .employmentStatus(employee.getEmploymentStatus() != null ? employee.getEmploymentStatus().name() : null)
+                .creationDate(employee.getCreationDate())
+                .modifiedDate(employee.getModifiedDate())
+                .build();
+    }
+
+    private DataScope resolveScope() {
+        if (SecurityUtils.hasAuthority("EMPLOYEE_CREATE")
+                || SecurityUtils.hasAuthority("EMPLOYEE_BULK_UPLOAD")
+                || SecurityUtils.hasAuthority("EMPLOYEE_DELETE")) {
+            return DataScope.ALL;
+        }
+
+        if (SecurityUtils.hasAuthority("TRAINING_ASSIGNMENT_VIEW")
+                && !SecurityUtils.hasAuthority("EMPLOYEE_CREATE")) {
+            return DataScope.TEAM;
+        }
+
+        return DataScope.SELF;
+    }
+
+    private void validateEmployeeAccess(Long organizationId, Employee targetEmployee) {
+        DataScope scope = resolveScope();
+
+        if (scope == DataScope.ALL) {
+            return;
+        }
+
+        Employee currentEmployee = currentEmployeeService.getCurrentEmployee(organizationId);
+
+        if (scope == DataScope.SELF && targetEmployee.getId().equals(currentEmployee.getId())) {
+            return;
+        }
+
+        if (scope == DataScope.TEAM
+                && targetEmployee.getManager() != null
+                && targetEmployee.getManager().getId().equals(currentEmployee.getId())) {
+            return;
+        }
+
+        throw new RuntimeException("You are not allowed to access this employee");
+    }
+
+    private void validateEmployeeWriteAccess(Long organizationId, Employee targetEmployee) {
+        DataScope scope = resolveScope();
+
+        if (scope == DataScope.ALL) {
+            return;
+        }
+
+        throw new RuntimeException("You are not allowed to modify this employee");
+    }
+
     private EmployeeResponse mapToResponse(Employee employee) {
         String fullName = buildFullName(employee);
 
@@ -305,39 +467,28 @@ public class EmployeeService {
                 employee.getMiddleName(),
                 employee.getLastName(),
                 fullName,
-
                 employee.getDepartment() != null ? employee.getDepartment().getId() : null,
                 employee.getDepartment() != null ? employee.getDepartment().getName() : null,
-
                 employee.getPosition() != null ? employee.getPosition().getId() : null,
                 employee.getPosition() != null ? employee.getPosition().getName() : null,
-
                 employee.getManager() != null ? employee.getManager().getId() : null,
                 employee.getManager() != null ? buildFullName(employee.getManager()) : null,
-
                 employee.getNationality() != null ? employee.getNationality().getId() : null,
                 employee.getNationality() != null ? employee.getNationality().getName() : null,
-
                 primaryAddress,
-
                 employee.getGender(),
                 employee.getPhoneNumber(),
                 employee.isActive(),
-
                 employee.getMasterUserId(),
                 employee.getUsername(),
                 employee.getSubTeam() != null ? employee.getSubTeam().getId() : null,
                 employee.getSubTeam() != null ? employee.getSubTeam().getName() : null,
-
                 employee.getSpecialization() != null ? employee.getSpecialization().getId() : null,
                 employee.getSpecialization() != null ? employee.getSpecialization().getName() : null,
-
                 employee.getSeniorityLevel() != null ? employee.getSeniorityLevel().getId() : null,
                 employee.getSeniorityLevel() != null ? employee.getSeniorityLevel().getName() : null,
-
                 employee.getLocation() != null ? employee.getLocation().getId() : null,
                 employee.getLocation() != null ? employee.getLocation().getName() : null,
-
                 employee.getEmploymentStatus(),
                 employee.getAcademyStatus(),
                 employee.getEmployeeType(),
@@ -345,45 +496,12 @@ public class EmployeeService {
                 employee.getModifiedDate()
         );
     }
+
     private String buildFullName(Employee employee) {
         return String.join(" ",
                 employee.getFirstName() != null ? employee.getFirstName() : "",
                 employee.getMiddleName() != null ? employee.getMiddleName() : "",
                 employee.getLastName() != null ? employee.getLastName() : ""
         ).trim().replaceAll(" +", " ");
-    }
-    public EmployeeCompanyInfoResponse getEmployeeCompanyInfo(
-            Long organizationId,
-            Long employeeId
-    ) {
-        Employee employee = employeeRepo.findByIdAndOrganizationId(employeeId, organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Employee not found"));
-
-        return EmployeeCompanyInfoResponse.builder()
-                .systemId(employee.getId())
-                .employeeId(employee.getEmployeeId())
-
-                .departmentId(employee.getDepartment() != null ? employee.getDepartment().getId() : null)
-                .departmentName(employee.getDepartment() != null ? employee.getDepartment().getName() : null)
-
-                .positionId(employee.getPosition() != null ? employee.getPosition().getId() : null)
-                .jobTitle(employee.getPosition() != null ? employee.getPosition().getName() : null)
-
-                .managerId(employee.getManager() != null ? employee.getManager().getId() : null)
-                .managerName(employee.getManager() != null ? buildFullName(employee.getManager()) : null)
-
-                .locationId(employee.getLocation() != null ? employee.getLocation().getId() : null)
-                .locationName(employee.getLocation() != null ? employee.getLocation().getName() : null)
-
-                .organizationId(employee.getOrganization() != null ? employee.getOrganization().getId() : null)
-                .organizationName(employee.getOrganization() != null ? employee.getOrganization().getName() : null)
-
-                .subTeamName(employee.getSubTeam() != null ? employee.getSubTeam().getName() : null)
-                .specializationName(employee.getSpecialization() != null ? employee.getSpecialization().getName() : null)
-
-                .employmentStatus(employee.isActive() ? "Active" : "Inactive")
-                .creationDate(employee.getCreationDate())
-                .modifiedDate(employee.getModifiedDate())
-                .build();
     }
 }
