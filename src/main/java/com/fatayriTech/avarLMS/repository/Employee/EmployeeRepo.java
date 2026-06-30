@@ -2,6 +2,8 @@ package com.fatayriTech.avarLMS.repository.Employee;
 
 import com.fatayriTech.avarLMS.model.Employee;
 import org.springframework.data.jpa.repository.JpaRepository;
+import com.fatayriTech.avarLMS.enums.AcademyStatus;
+import com.fatayriTech.avarLMS.enums.EmployeeType;
 
 import java.util.List;
 import java.util.Optional;
@@ -72,5 +74,20 @@ public interface EmployeeRepo extends JpaRepository<Employee, Long> {
 
     long countByOrganizationId(
             Long organizationId
+    );
+
+    List<Employee> findByIdInAndOrganizationIdAndActiveTrue(
+            List<Long> ids,
+            Long organizationId
+    );
+
+    List<Employee> findByOrganizationIdAndEmployeeTypeAndActiveTrue(
+            Long organizationId,
+            EmployeeType employeeType
+    );
+
+    List<Employee> findByOrganizationIdAndAcademyStatusAndActiveTrue(
+            Long organizationId,
+            AcademyStatus academyStatus
     );
 }

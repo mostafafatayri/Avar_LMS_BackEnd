@@ -69,7 +69,7 @@ public class LearningPathAssignment {
         }
 
         if (this.status == null) {
-            this.status = LearningPathAssignmentStatus.ASSIGNED;
+            this.status = LearningPathAssignmentStatus.NOT_STARTED;
         }
 
         if (this.progressPercentage == null) {

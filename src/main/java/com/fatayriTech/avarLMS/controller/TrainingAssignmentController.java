@@ -26,6 +26,19 @@ public class TrainingAssignmentController {
         return trainingAssignmentService.getAll(organizationId);
     }
 
+    @PreAuthorize("hasAuthority('TRAINING_ASSIGNMENT_CREATE')")
+    @PostMapping("/batch")
+    public List<TrainingAssignmentResponse> createBatch(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestBody TrainingAssignmentRequest request
+    ) {
+        return trainingAssignmentService.createBatch(
+                organizationId,
+                userId,
+                request
+        );
+    }
     @PreAuthorize("hasAuthority('TRAINING_ASSIGNMENT_VIEW')")
     @GetMapping("/{id}")
     public TrainingAssignmentResponse getById(

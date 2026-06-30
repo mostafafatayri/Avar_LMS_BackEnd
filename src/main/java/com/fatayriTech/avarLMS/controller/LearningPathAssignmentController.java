@@ -73,4 +73,20 @@ public class LearningPathAssignmentController {
     ) {
         assignmentService.delete(organizationId, assignmentId);
     }
+
+    @PreAuthorize("hasAuthority('LEARNING_PATH_ASSIGNMENT_CREATE')")
+    @PostMapping("/path/{learningPathId}/batch")
+    public List<LearningPathAssignmentResponse> createBatch(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @PathVariable Long learningPathId,
+            @RequestBody LearningPathAssignmentRequest request
+    ) {
+        return assignmentService.createBatch(
+                organizationId,
+                learningPathId,
+                userId,
+                request
+        );
+    }
 }

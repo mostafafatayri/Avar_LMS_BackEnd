@@ -60,7 +60,7 @@ public class NotificationScannerService {
                         rule.getOrganizationId(),
                         targetDate,
                         List.of(
-                                TrainingAssignmentStatus.ASSIGNED,
+                                TrainingAssignmentStatus.NOT_STARTED,
                                 TrainingAssignmentStatus.IN_PROGRESS
                         )
                 );
@@ -126,7 +126,7 @@ public class NotificationScannerService {
                         rule.getOrganizationId(),
                         targetDate,
                         List.of(
-                                LearningPathAssignmentStatus.ASSIGNED,
+                                LearningPathAssignmentStatus.NOT_STARTED,
                                 LearningPathAssignmentStatus.IN_PROGRESS
                         )
                 );

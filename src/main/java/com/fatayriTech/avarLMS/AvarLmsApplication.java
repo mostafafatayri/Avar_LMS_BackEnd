@@ -14,3 +14,29 @@ public class AvarLmsApplication {
 
 
 }
+
+
+/*
+Instead of
+
+Assign now
+
+the admin can choose
+
+Assign:
+( ) Immediately
+
+( ) On a future date
+
+( ) Recurring
+      Daily
+      Weekly
+      Monthly
+
+( ) On Employee Join Date
+
+( ) After Probation
+
+( ) After completing another training
+*
+**/

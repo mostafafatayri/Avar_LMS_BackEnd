@@ -72,7 +72,7 @@ public class TrainingAssignment {
         }
 
         if (this.status == null) {
-            this.status = TrainingAssignmentStatus.ASSIGNED;
+            this.status = TrainingAssignmentStatus.NOT_STARTED;
         }
 
         if (this.progressPercentage == null) {

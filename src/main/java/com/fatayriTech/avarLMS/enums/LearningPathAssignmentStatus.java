@@ -1,9 +1,18 @@
 package com.fatayriTech.avarLMS.enums;
 
 public enum LearningPathAssignmentStatus {
-    ASSIGNED,
+
+    NOT_STARTED,
+
     IN_PROGRESS,
+
+    PENDING_APPROVAL,
+
     COMPLETED,
+
+    FAILED,
+
     OVERDUE,
-    CANCELLED
+
+    EXEMPTED
 }

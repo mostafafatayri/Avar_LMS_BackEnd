@@ -3,10 +3,10 @@ package com.fatayriTech.avarLMS.service.LearningPath;
 import com.fatayriTech.avarLMS.enums.LearningPathAssignmentStatus;
 import com.fatayriTech.avarLMS.enums.LearningPathAssignmentTargetType;
 import com.fatayriTech.avarLMS.model.*;
+import com.fatayriTech.avarLMS.repository.*;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.DepartmentRepo;
 import com.fatayriTech.avarLMS.repository.DepartmentRepo.PositionRepo;
 import com.fatayriTech.avarLMS.repository.Employee.EmployeeRepo;
-import com.fatayriTech.avarLMS.repository.*;
 import com.fatayriTech.avarLMS.request.learningPath.LearningPathAssignmentRequest;
 import com.fatayriTech.avarLMS.response.learningPath.LearningPathAssignmentResponse;
 import lombok.RequiredArgsConstructor;
@@ -98,12 +98,64 @@ public class LearningPathAssignmentService {
                 .targetId(request.getTargetId())
                 .assignedBy(assignedBy)
                 .validityDays(request.getValidityDays())
-                .status(LearningPathAssignmentStatus.ASSIGNED)
+                .status(LearningPathAssignmentStatus.NOT_STARTED)
                 .progressPercentage(0)
                 .active(true)
                 .build();
 
         return mapToResponse(assignmentRepo.save(assignment));
+    }
+
+    public List<LearningPathAssignmentResponse> createBatch(
+            Long organizationId,
+            Long learningPathId,
+            Long assignedBy,
+            LearningPathAssignmentRequest request
+    ) {
+        LearningPath learningPath = learningPathRepo
+                .findByIdAndOrganizationIdAndActiveTrue(learningPathId, organizationId)
+                .orElseThrow(() -> new RuntimeException("Learning path not found"));
+
+        List<Employee> employees = resolveEmployeesForBatchAssignment(
+                organizationId,
+                request
+        );
+
+        if (employees.isEmpty()) {
+            throw new RuntimeException("No employees found for the selected assignment target");
+        }
+
+        List<LearningPathAssignment> assignments = employees.stream()
+                .filter(employee -> !assignmentRepo
+                        .existsByOrganizationIdAndLearningPathIdAndTargetTypeAndTargetIdAndActiveTrue(
+                                organizationId,
+                                learningPathId,
+                                LearningPathAssignmentTargetType.EMPLOYEE,
+                                employee.getId()
+                        )
+                )
+                .map(employee -> LearningPathAssignment.builder()
+                        .organizationId(organizationId)
+                        .learningPath(learningPath)
+                        .targetType(LearningPathAssignmentTargetType.EMPLOYEE)
+                        .targetId(employee.getId())
+                        .assignedBy(assignedBy)
+                        .validityDays(request.getValidityDays())
+                        .status(LearningPathAssignmentStatus.NOT_STARTED)
+                        .progressPercentage(0)
+                        .active(true)
+                        .build()
+                )
+                .toList();
+
+        if (assignments.isEmpty()) {
+            throw new RuntimeException("All selected employees already have this learning path assigned");
+        }
+
+        return assignmentRepo.saveAll(assignments)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
     }
 
     public LearningPathAssignmentResponse updateProgress(
@@ -118,7 +170,7 @@ public class LearningPathAssignmentService {
         assignment.setProgressPercentage(safeProgress);
 
         if (safeProgress == 0) {
-            assignment.setStatus(LearningPathAssignmentStatus.ASSIGNED);
+            assignment.setStatus(LearningPathAssignmentStatus.NOT_STARTED);
             assignment.setCompletionDate(null);
         } else if (safeProgress < 100) {
             assignment.setStatus(LearningPathAssignmentStatus.IN_PROGRESS);
@@ -162,8 +214,9 @@ public class LearningPathAssignmentService {
                         organizationId,
                         LocalDate.now(),
                         List.of(
-                                LearningPathAssignmentStatus.ASSIGNED,
-                                LearningPathAssignmentStatus.IN_PROGRESS
+                                LearningPathAssignmentStatus.NOT_STARTED,
+                                LearningPathAssignmentStatus.IN_PROGRESS,
+                                LearningPathAssignmentStatus.PENDING_APPROVAL
                         )
                 );
 
@@ -173,6 +226,50 @@ public class LearningPathAssignmentService {
 
         overdue.forEach(item -> item.setStatus(LearningPathAssignmentStatus.OVERDUE));
         assignmentRepo.saveAll(overdue);
+    }
+
+    private List<Employee> resolveEmployeesForBatchAssignment(
+            Long organizationId,
+            LearningPathAssignmentRequest request
+    ) {
+        if (request.getBatchTargetType() == null) {
+            return List.of();
+        }
+
+        return switch (request.getBatchTargetType()) {
+            case MULTIPLE_EMPLOYEES -> {
+                if (request.getEmployeeIds() == null || request.getEmployeeIds().isEmpty()) {
+                    throw new RuntimeException("Please select at least one employee");
+                }
+
+                yield employeeRepo.findByIdInAndOrganizationIdAndActiveTrue(
+                        request.getEmployeeIds(),
+                        organizationId
+                );
+            }
+
+            case EMPLOYEE_TYPE -> {
+                if (request.getEmployeeType() == null) {
+                    throw new RuntimeException("Employee type is required");
+                }
+
+                yield employeeRepo.findByOrganizationIdAndEmployeeTypeAndActiveTrue(
+                        organizationId,
+                        request.getEmployeeType()
+                );
+            }
+
+            case ACADEMY -> {
+                if (request.getAcademyStatus() == null) {
+                    throw new RuntimeException("Academy status is required");
+                }
+
+                yield employeeRepo.findByOrganizationIdAndAcademyStatusAndActiveTrue(
+                        organizationId,
+                        request.getAcademyStatus()
+                );
+            }
+        };
     }
 
     private void validateTargetExists(
@@ -216,7 +313,7 @@ public class LearningPathAssignmentService {
             return switch (targetType) {
                 case EMPLOYEE -> employeeRepo
                         .findByIdAndOrganizationId(targetId, organizationId)
-                        .map(Employee::getUsername)
+                        .map(this::buildEmployeeName)
                         .orElse("-");
 
                 case DEPARTMENT -> departmentRepo
@@ -279,5 +376,26 @@ public class LearningPathAssignmentService {
                 .creationDate(assignment.getCreationDate())
                 .modificationDate(assignment.getModificationDate())
                 .build();
+    }
+
+    private String buildEmployeeName(Employee employee) {
+        String fullName = String.join(
+                " ",
+                List.of(
+                        employee.getFirstName() == null ? "" : employee.getFirstName(),
+                        employee.getMiddleName() == null ? "" : employee.getMiddleName(),
+                        employee.getLastName() == null ? "" : employee.getLastName()
+                )
+        ).trim();
+
+        if (!fullName.isBlank()) {
+            return fullName;
+        }
+
+        if (employee.getUsername() != null && !employee.getUsername().isBlank()) {
+            return employee.getUsername();
+        }
+
+        return employee.getEmail() != null ? employee.getEmail() : "-";
     }
 }
