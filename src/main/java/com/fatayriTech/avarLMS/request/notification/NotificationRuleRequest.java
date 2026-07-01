@@ -2,6 +2,7 @@ package com.fatayriTech.avarLMS.request.notification;
 
 import com.fatayriTech.avarLMS.enums.NotificationEventType;
 import com.fatayriTech.avarLMS.enums.NotificationModule;
+import com.fatayriTech.avarLMS.enums.NotificationRecipientType;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -27,4 +28,7 @@ public class NotificationRuleRequest {
 
     private String subjectTemplate;
     private String bodyTemplate;
+    private NotificationRecipientType recipientType;
+    private Long recipientTargetId;
+    private String recipientTargetCode;
 }

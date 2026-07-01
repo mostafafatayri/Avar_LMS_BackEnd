@@ -39,4 +39,6 @@ public class TrainingAssignmentResponse {
     private Boolean active;
     private LocalDateTime creationDate;
     private LocalDateTime modificationDate;
+    private Boolean assignmentRequired;
+
 }

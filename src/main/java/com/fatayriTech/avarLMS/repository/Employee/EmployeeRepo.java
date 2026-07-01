@@ -90,4 +90,9 @@ public interface EmployeeRepo extends JpaRepository<Employee, Long> {
             Long organizationId,
             AcademyStatus academyStatus
     );
+
+    List<Employee> findByDepartmentIdAndOrganizationIdAndActiveTrue(
+            Long departmentId,
+            Long organizationId
+    );
 }

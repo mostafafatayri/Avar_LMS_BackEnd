@@ -2,6 +2,7 @@ package com.fatayriTech.avarLMS.controller;
 
 import com.fatayriTech.avarLMS.request.learningPath.LearningPathAssignmentRequest;
 import com.fatayriTech.avarLMS.response.learningPath.LearningPathAssignmentResponse;
+import com.fatayriTech.avarLMS.response.learningPath.MyLearningPathDetailsResponse;
 import com.fatayriTech.avarLMS.service.LearningPath.LearningPathAssignmentService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
@@ -88,5 +89,14 @@ public class LearningPathAssignmentController {
                 userId,
                 request
         );
+    }
+
+    @PreAuthorize("hasAuthority('LEARNING_PATH_ASSIGNMENT_VIEW')")
+    @GetMapping("/{assignmentId}/details")
+    public MyLearningPathDetailsResponse getMyLearningPathDetails(
+            @RequestHeader("X-Organization-Id") Long organizationId,
+            @PathVariable Long assignmentId
+    ) {
+        return assignmentService.getMyLearningPathDetails(organizationId, assignmentId);
     }
 }

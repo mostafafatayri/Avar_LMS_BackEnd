@@ -79,7 +79,9 @@ public class NotificationDynamicSchedulerService {
         cancelSchedule(rule.getId());
 
         ScheduledFuture<?> task = taskScheduler.schedule(
-                () -> notificationScannerService.scanRule(rule),
+                () -> notificationRuleRepo.findById(rule.getId())
+                        .filter(activeRule -> Boolean.TRUE.equals(activeRule.getActive()))
+                        .ifPresent(notificationScannerService::scanRule),
                 new CronTrigger(cron)
         );
 

@@ -25,4 +25,5 @@ public class TrainingAssignmentRequest {
     private Long trainingCatalogueId;
 
     private Integer validityDays;
+    private Boolean assignmentRequired;
 }

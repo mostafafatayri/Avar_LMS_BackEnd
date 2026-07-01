@@ -1,5 +1,6 @@
 package com.fatayriTech.avarLMS.service.Notification;
-//
+
+import com.fatayriTech.avarLMS.enums.NotificationRecipientType;
 import com.fatayriTech.avarLMS.model.NotificationRule;
 import com.fatayriTech.avarLMS.repository.NotificationRepos.NotificationRuleRepo;
 import com.fatayriTech.avarLMS.request.notification.NotificationRuleRequest;
@@ -31,6 +32,13 @@ public class NotificationRuleService {
                 .name(request.getName())
                 .module(request.getModule())
                 .eventType(request.getEventType())
+                .recipientType(
+                        request.getRecipientType() == null
+                                ? NotificationRecipientType.EMPLOYEE
+                                : request.getRecipientType()
+                )
+                .recipientTargetId(request.getRecipientTargetId())
+                .recipientTargetCode(request.getRecipientTargetCode())
                 .channelEmail(Boolean.TRUE.equals(request.getChannelEmail()))
                 .channelInApp(Boolean.TRUE.equals(request.getChannelInApp()))
                 .daysBefore(request.getDaysBefore())
@@ -88,6 +96,13 @@ public class NotificationRuleService {
         rule.setName(request.getName());
         rule.setModule(request.getModule());
         rule.setEventType(request.getEventType());
+        rule.setRecipientType(
+                request.getRecipientType() == null
+                        ? NotificationRecipientType.EMPLOYEE
+                        : request.getRecipientType()
+        );
+        rule.setRecipientTargetId(request.getRecipientTargetId());
+        rule.setRecipientTargetCode(request.getRecipientTargetCode());
         rule.setChannelEmail(Boolean.TRUE.equals(request.getChannelEmail()));
         rule.setChannelInApp(Boolean.TRUE.equals(request.getChannelInApp()));
         rule.setDaysBefore(request.getDaysBefore());
@@ -134,6 +149,23 @@ public class NotificationRuleService {
         if (request.getEventType() == null) {
             throw new RuntimeException("Notification event type is required");
         }
+
+        NotificationRecipientType recipientType =
+                request.getRecipientType() == null
+                        ? NotificationRecipientType.EMPLOYEE
+                        : request.getRecipientType();
+
+        if (recipientType == NotificationRecipientType.DEPARTMENT
+                && request.getRecipientTargetId() == null) {
+            throw new RuntimeException("Department is required for department recipient rules");
+        }
+
+        if ((recipientType == NotificationRecipientType.EMPLOYEE_TYPE
+                || recipientType == NotificationRecipientType.ACADEMY)
+                && (request.getRecipientTargetCode() == null
+                || request.getRecipientTargetCode().isBlank())) {
+            throw new RuntimeException("Recipient target code is required for this recipient type");
+        }
     }
 
     private NotificationRuleResponse mapToResponse(NotificationRule rule) {
@@ -144,6 +176,9 @@ public class NotificationRuleService {
                 .name(rule.getName())
                 .module(rule.getModule())
                 .eventType(rule.getEventType())
+                .recipientType(rule.getRecipientType())
+                .recipientTargetId(rule.getRecipientTargetId())
+                .recipientTargetCode(rule.getRecipientTargetCode())
                 .channelEmail(rule.getChannelEmail())
                 .channelInApp(rule.getChannelInApp())
                 .daysBefore(rule.getDaysBefore())

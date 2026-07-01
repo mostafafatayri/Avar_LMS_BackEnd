@@ -43,4 +43,5 @@ public class LearningPathAssignmentResponse {
     private LocalDateTime creationDate;
 
     private LocalDateTime modificationDate;
+    private Boolean assignmentRequired;
 }

@@ -38,6 +38,9 @@ public class LearningPathAssignment {
 
     private LocalDate expiryDate;
 
+    @Column(name = "assignment_required")
+    private Boolean assignmentRequired = true;
+
     @Enumerated(EnumType.STRING)
     private LearningPathAssignmentStatus status;
 
@@ -68,6 +71,10 @@ public class LearningPathAssignment {
             this.expiryDate = this.assignedDate.toLocalDate().plusDays(this.validityDays);
         }
 
+        if (this.assignmentRequired == null) {
+            this.assignmentRequired = true;
+        }
+
         if (this.status == null) {
             this.status = LearningPathAssignmentStatus.NOT_STARTED;
         }
@@ -87,6 +94,10 @@ public class LearningPathAssignment {
 
         if (this.validityDays != null && this.assignedDate != null) {
             this.expiryDate = this.assignedDate.toLocalDate().plusDays(this.validityDays);
+        }
+
+        if (this.assignmentRequired == null) {
+            this.assignmentRequired = true;
         }
     }
 }

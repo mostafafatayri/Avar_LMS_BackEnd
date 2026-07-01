@@ -26,19 +26,15 @@ public class DashboardService {
     private final TrainingAssignmentRepo trainingAssignmentRepo;
 
     @Transactional(readOnly = true)
-    public DashboardResponse getDashboard(
-            Long organizationId,
-            DashboardFilterRequest filter
-    ) {
-        List<Employee> employees = employeeRepo.findAll()
+    public DashboardResponse getDashboard(Long organizationId, DashboardFilterRequest filter) {
+        List<Employee> employees = employeeRepo.findByOrganizationId(organizationId)
                 .stream()
-                .filter(e -> e.getOrganization() != null)
-                .filter(e -> organizationId.equals(e.getOrganization().getId()))
+                .filter(Employee::isActive)
                 .toList();
 
         List<TrainingCatalogue> trainings = trainingCatalogueRepo.findAll()
                 .stream()
-                .filter(t -> organizationId.equals(t.getOrganizationId()))
+                .filter(training -> organizationId.equals(training.getOrganizationId()))
                 .toList();
 
         List<TrainingAssignment> assignments =
@@ -46,43 +42,34 @@ public class DashboardService {
                         organizationId
                 );
 
-        assignments = applyFilters(assignments, filter);
+        List<TrainingAssignment> filteredAssignments = applyFilters(assignments, filter);
 
-        long totalAssignments = assignments.size();
-
-        long completed = assignments.stream()
-                .filter(this::isCompleted)
-                .count();
-
-        long overdue = assignments.stream()
-                .filter(this::isOverdue)
-                .count();
-
-        long compliant = assignments.stream()
-                .filter(this::isCompliant)
-                .count();
-
-        int completionRate = percent(completed, totalAssignments);
-        int complianceRate = percent(compliant, totalAssignments);
+        long totalAssignments = filteredAssignments.size();
+        long completedAssignments = filteredAssignments.stream().filter(this::isCompleted).count();
+        long overdueAssignments = filteredAssignments.stream().filter(this::isOverdue).count();
+        long compliantAssignments = filteredAssignments.stream().filter(this::isCompliant).count();
 
         return DashboardResponse.builder()
                 .kpis(
                         DashboardResponse.Kpis.builder()
-                                .totalEmployees(employees.stream().filter(Employee::isActive).count())
-                                .totalTrainings(trainings.size())
-                                .activeTrainings(trainings.stream().filter(t -> Boolean.TRUE.equals(t.getActive())).count())
-                                .completionRate(completionRate)
-                                .overdueTrainings(overdue)
-                                .complianceRate(complianceRate)
+                                .totalEmployees(countFilteredEmployees(employees, filter))
+                                .totalTrainings(countFilteredTrainings(trainings, filter))
+                                .activeTrainings(countActiveFilteredTrainings(trainings, filter))
+                                .completionRate(percent(completedAssignments, totalAssignments))
+                                .overdueTrainings(overdueAssignments)
+                                .complianceRate(percent(compliantAssignments, totalAssignments))
                                 .trainingAssignments(totalAssignments)
                                 .build()
                 )
-                .completionTrend(buildCompletionTrend(assignments))
-                .departmentCompletion(buildDepartmentCompletion(assignments))
-                .departmentCompliance(buildDepartmentCompliance(assignments))
-                .assignmentStatus(buildStatusOverview(assignments))
-                .overdueTrainings(buildOverdueTrainings(assignments))
-                .topTrainings(buildTopTrainings(assignments))
+                .completionTrend(buildCompletionTrend(filteredAssignments))
+                .departmentCompletion(buildDepartmentCompletion(filteredAssignments))
+                .departmentCompliance(buildDepartmentCompliance(filteredAssignments))
+                .mandatoryCompletionByDepartment(
+                        buildMandatoryCompletionByDepartment(filteredAssignments)
+                )
+                .assignmentStatus(buildStatusOverview(filteredAssignments))
+                .overdueTrainings(buildOverdueTrainings(filteredAssignments))
+                .topTrainings(buildTopTrainings(filteredAssignments))
                 .build();
     }
 
@@ -95,65 +82,185 @@ public class DashboardService {
         }
 
         return assignments.stream()
-                .filter(a -> filter.getDepartmentId() == null ||
-                        (
-                                a.getEmployee() != null &&
-                                        a.getEmployee().getDepartment() != null &&
-                                        filter.getDepartmentId().equals(a.getEmployee().getDepartment().getId())
-                        )
-                )
-                .filter(a -> filter.getRoleId() == null ||
-                        (
-                                a.getEmployee() != null &&
-                                        a.getEmployee().getPosition() != null &&
-                                        filter.getRoleId().equals(a.getEmployee().getPosition().getId())
-                        )
-                )
-                .filter(a -> filter.getTrainingId() == null ||
-                        (
-                                a.getTrainingCatalogue() != null &&
-                                        filter.getTrainingId().equals(a.getTrainingCatalogue().getId())
-                        )
-                )
-                .filter(a -> filter.getStatus() == null ||
-                        filter.getStatus().isBlank() ||
-                        (
-                                a.getStatus() != null &&
-                                        a.getStatus().name().equalsIgnoreCase(filter.getStatus())
-                        )
-                )
-                .filter(a -> filter.getDueDateFrom() == null ||
-                        (
-                                a.getExpiryDate() != null &&
-                                        !a.getExpiryDate().isBefore(filter.getDueDateFrom())
-                        )
-                )
-                .filter(a -> filter.getDueDateTo() == null ||
-                        (
-                                a.getExpiryDate() != null &&
-                                        !a.getExpiryDate().isAfter(filter.getDueDateTo())
-                        )
-                )
-                .filter(a -> filter.getCompletionDateFrom() == null ||
-                        (
-                                a.getCompletionDate() != null &&
-                                        !a.getCompletionDate().toLocalDate().isBefore(filter.getCompletionDateFrom())
-                        )
-                )
-                .filter(a -> filter.getCompletionDateTo() == null ||
-                        (
-                                a.getCompletionDate() != null &&
-                                        !a.getCompletionDate().toLocalDate().isAfter(filter.getCompletionDateTo())
-                        )
-                )
+                .filter(assignment -> matchesDepartment(assignment, filter.getDepartmentId()))
+                .filter(assignment -> matchesLocation(assignment, filter.getLocationId()))
+                .filter(assignment -> matchesRole(assignment, filter.getRoleId()))
+                .filter(assignment -> matchesTraining(assignment, filter.getTrainingId()))
+                .filter(assignment -> matchesStatus(assignment, filter.getStatus()))
+                .filter(assignment -> matchesAcademyStatus(assignment, filter.getAcademyStatus()))
+                .filter(assignment -> matchesModule(assignment, filter.getModule()))
+                .filter(assignment -> matchesDueDateFrom(assignment, filter.getDueDateFrom()))
+                .filter(assignment -> matchesDueDateTo(assignment, filter.getDueDateTo()))
+                .filter(assignment -> matchesCompletionDateFrom(assignment, filter.getCompletionDateFrom()))
+                .filter(assignment -> matchesCompletionDateTo(assignment, filter.getCompletionDateTo()))
                 .toList();
+    }
+
+    private long countFilteredEmployees(List<Employee> employees, DashboardFilterRequest filter) {
+        if (filter == null) {
+            return employees.size();
+        }
+
+        return employees.stream()
+                .filter(employee -> filter.getDepartmentId() == null ||
+                        (
+                                employee.getDepartment() != null &&
+                                        filter.getDepartmentId().equals(employee.getDepartment().getId())
+                        )
+                )
+                .filter(employee -> filter.getLocationId() == null ||
+                        (
+                                employee.getLocation() != null &&
+                                        filter.getLocationId().equals(employee.getLocation().getId())
+                        )
+                )
+                .filter(employee -> filter.getRoleId() == null ||
+                        (
+                                employee.getPosition() != null &&
+                                        filter.getRoleId().equals(employee.getPosition().getId())
+                        )
+                )
+                .filter(employee -> filter.getAcademyStatus() == null ||
+                        filter.getAcademyStatus().isBlank() ||
+                        (
+                                employee.getAcademyStatus() != null &&
+                                        employee.getAcademyStatus().name()
+                                                .equalsIgnoreCase(filter.getAcademyStatus())
+                        )
+                )
+                .count();
+    }
+
+    private long countFilteredTrainings(
+            List<TrainingCatalogue> trainings,
+            DashboardFilterRequest filter
+    ) {
+        return trainings.stream()
+                .filter(training -> matchesTrainingCatalogueFilters(training, filter))
+                .count();
+    }
+
+    private long countActiveFilteredTrainings(
+            List<TrainingCatalogue> trainings,
+            DashboardFilterRequest filter
+    ) {
+        return trainings.stream()
+                .filter(training -> matchesTrainingCatalogueFilters(training, filter))
+                .filter(training -> Boolean.TRUE.equals(training.getActive()))
+                .count();
+    }
+
+    private boolean matchesTrainingCatalogueFilters(
+            TrainingCatalogue training,
+            DashboardFilterRequest filter
+    ) {
+        if (filter == null) {
+            return true;
+        }
+
+        if (filter.getTrainingId() != null &&
+                !filter.getTrainingId().equals(training.getId())) {
+            return false;
+        }
+
+        if (filter.getModule() != null &&
+                !filter.getModule().isBlank() &&
+                (
+                        training.getModule() == null ||
+                                !training.getModule().name().equalsIgnoreCase(filter.getModule())
+                )) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean matchesDepartment(TrainingAssignment assignment, Long departmentId) {
+        if (departmentId == null) return true;
+
+        return assignment.getEmployee() != null &&
+                assignment.getEmployee().getDepartment() != null &&
+                departmentId.equals(assignment.getEmployee().getDepartment().getId());
+    }
+
+    private boolean matchesLocation(TrainingAssignment assignment, Long locationId) {
+        if (locationId == null) return true;
+
+        return assignment.getEmployee() != null &&
+                assignment.getEmployee().getLocation() != null &&
+                locationId.equals(assignment.getEmployee().getLocation().getId());
+    }
+
+    private boolean matchesRole(TrainingAssignment assignment, Long roleId) {
+        if (roleId == null) return true;
+
+        return assignment.getEmployee() != null &&
+                assignment.getEmployee().getPosition() != null &&
+                roleId.equals(assignment.getEmployee().getPosition().getId());
+    }
+
+    private boolean matchesTraining(TrainingAssignment assignment, Long trainingId) {
+        if (trainingId == null) return true;
+
+        return assignment.getTrainingCatalogue() != null &&
+                trainingId.equals(assignment.getTrainingCatalogue().getId());
+    }
+
+    private boolean matchesStatus(TrainingAssignment assignment, String status) {
+        if (status == null || status.isBlank()) return true;
+
+        return assignment.getStatus() != null &&
+                assignment.getStatus().name().equalsIgnoreCase(status);
+    }
+
+    private boolean matchesAcademyStatus(TrainingAssignment assignment, String academyStatus) {
+        if (academyStatus == null || academyStatus.isBlank()) return true;
+
+        return assignment.getEmployee() != null &&
+                assignment.getEmployee().getAcademyStatus() != null &&
+                assignment.getEmployee().getAcademyStatus().name().equalsIgnoreCase(academyStatus);
+    }
+
+    private boolean matchesModule(TrainingAssignment assignment, String module) {
+        if (module == null || module.isBlank()) return true;
+
+        return assignment.getTrainingCatalogue() != null &&
+                assignment.getTrainingCatalogue().getModule() != null &&
+                assignment.getTrainingCatalogue().getModule().name().equalsIgnoreCase(module);
+    }
+
+    private boolean matchesDueDateFrom(TrainingAssignment assignment, LocalDate from) {
+        if (from == null) return true;
+
+        return assignment.getExpiryDate() != null &&
+                !assignment.getExpiryDate().isBefore(from);
+    }
+
+    private boolean matchesDueDateTo(TrainingAssignment assignment, LocalDate to) {
+        if (to == null) return true;
+
+        return assignment.getExpiryDate() != null &&
+                !assignment.getExpiryDate().isAfter(to);
+    }
+
+    private boolean matchesCompletionDateFrom(TrainingAssignment assignment, LocalDate from) {
+        if (from == null) return true;
+
+        return assignment.getCompletionDate() != null &&
+                !assignment.getCompletionDate().toLocalDate().isBefore(from);
+    }
+
+    private boolean matchesCompletionDateTo(TrainingAssignment assignment, LocalDate to) {
+        if (to == null) return true;
+
+        return assignment.getCompletionDate() != null &&
+                !assignment.getCompletionDate().toLocalDate().isAfter(to);
     }
 
     private List<DashboardResponse.ChartPoint> buildCompletionTrend(
             List<TrainingAssignment> assignments
     ) {
         LocalDate today = LocalDate.now();
-
         List<DashboardResponse.ChartPoint> result = new ArrayList<>();
 
         for (int i = 5; i >= 0; i--) {
@@ -183,22 +290,7 @@ public class DashboardService {
     private List<DashboardResponse.DepartmentMetric> buildDepartmentCompletion(
             List<TrainingAssignment> assignments
     ) {
-        Map<String, List<TrainingAssignment>> grouped = assignments.stream()
-                .collect(Collectors.groupingBy(this::getDepartmentName));
-
-        return grouped.entrySet()
-                .stream()
-                .map(entry -> DashboardResponse.DepartmentMetric.builder()
-                        .name(entry.getKey())
-                        .value(percent(
-                                entry.getValue().stream().filter(this::isCompleted).count(),
-                                entry.getValue().size()
-                        ))
-                        .build()
-                )
-                .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
-                .limit(5)
-                .toList();
+        return buildDepartmentPercentageMetric(assignments, false);
     }
 
     private List<DashboardResponse.DepartmentMetric> buildDepartmentCompliance(
@@ -215,11 +307,45 @@ public class DashboardService {
                                 entry.getValue().stream().filter(this::isCompliant).count(),
                                 entry.getValue().size()
                         ))
-                        .build()
-                )
+                        .build())
                 .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
-                .limit(5)
+                .limit(8)
                 .toList();
+    }
+
+    private List<DashboardResponse.DepartmentMetric> buildMandatoryCompletionByDepartment(
+            List<TrainingAssignment> assignments
+    ) {
+        List<TrainingAssignment> mandatoryAssignments = assignments.stream()
+                .filter(assignment -> Boolean.TRUE.equals(assignment.getAssignmentRequired()))
+                .toList();
+
+        return buildDepartmentPercentageMetric(mandatoryAssignments, false);
+    }
+
+    private List<DashboardResponse.DepartmentMetric> buildDepartmentPercentageMetric(
+            List<TrainingAssignment> assignments,
+            boolean limitResults
+    ) {
+        Map<String, List<TrainingAssignment>> grouped = assignments.stream()
+                .collect(Collectors.groupingBy(this::getDepartmentName));
+
+        var stream = grouped.entrySet()
+                .stream()
+                .map(entry -> DashboardResponse.DepartmentMetric.builder()
+                        .name(entry.getKey())
+                        .value(percent(
+                                entry.getValue().stream().filter(this::isCompleted).count(),
+                                entry.getValue().size()
+                        ))
+                        .build())
+                .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()));
+
+        if (limitResults) {
+            return stream.limit(5).toList();
+        }
+
+        return stream.toList();
     }
 
     private List<DashboardResponse.AssignmentStatusMetric> buildStatusOverview(
@@ -239,8 +365,8 @@ public class DashboardService {
                         .name(formatStatus(entry.getKey()))
                         .value(entry.getValue())
                         .percent(percent(entry.getValue(), total))
-                        .build()
-                )
+                        .build())
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
                 .toList();
     }
 
@@ -265,7 +391,7 @@ public class DashboardService {
                             .employees(entry.getValue().size())
                             .build();
                 })
-                .limit(6)
+                .limit(8)
                 .toList();
     }
 
@@ -283,10 +409,9 @@ public class DashboardService {
                                 entry.getValue().stream().filter(this::isCompleted).count(),
                                 entry.getValue().size()
                         ))
-                        .build()
-                )
+                        .build())
                 .sorted((a, b) -> Integer.compare(b.getRate(), a.getRate()))
-                .limit(5)
+                .limit(8)
                 .toList();
     }
 
@@ -302,6 +427,10 @@ public class DashboardService {
     }
 
     private boolean isCompliant(TrainingAssignment assignment) {
+        if (!Boolean.TRUE.equals(assignment.getAssignmentRequired())) {
+            return true;
+        }
+
         if (!isCompleted(assignment)) {
             return false;
         }

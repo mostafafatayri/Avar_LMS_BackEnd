@@ -2,6 +2,7 @@ package com.fatayriTech.avarLMS.response.notification;
 
 import com.fatayriTech.avarLMS.enums.NotificationEventType;
 import com.fatayriTech.avarLMS.enums.NotificationModule;
+import com.fatayriTech.avarLMS.enums.NotificationRecipientType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -35,4 +36,7 @@ public class NotificationRuleResponse {
 
     private LocalDateTime creationDate;
     private LocalDateTime modificationDate;
+    private NotificationRecipientType recipientType;
+    private Long recipientTargetId;
+    private String recipientTargetCode;
 }

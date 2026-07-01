@@ -1,5 +1,5 @@
 package com.fatayriTech.avarLMS.model;
-
+import com.fatayriTech.avarLMS.enums.NotificationRecipientType;
 import com.fatayriTech.avarLMS.enums.NotificationEventType;
 import com.fatayriTech.avarLMS.enums.NotificationModule;
 import jakarta.persistence.*;
@@ -55,6 +55,13 @@ public class NotificationRule {
     private LocalDateTime creationDate;
     private LocalDateTime modificationDate;
 
+    @Enumerated(EnumType.STRING)
+    private NotificationRecipientType recipientType;
+
+    private Long recipientTargetId;
+
+    private String recipientTargetCode;
+
     @PrePersist
     protected void onCreate() {
         creationDate = LocalDateTime.now();
@@ -63,6 +70,7 @@ public class NotificationRule {
         if (active == null) active = true;
         if (channelEmail == null) channelEmail = true;
         if (channelInApp == null) channelInApp = true;
+        if (recipientType == null) recipientType = NotificationRecipientType.EMPLOYEE;
     }
 
     @PreUpdate

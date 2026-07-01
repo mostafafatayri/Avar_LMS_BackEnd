@@ -1,5 +1,10 @@
 package com.fatayriTech.avarLMS.service.LearningPath;
+import com.fatayriTech.avarLMS.enums.TrainingAssignmentStatus;
+import com.fatayriTech.avarLMS.response.learningPath.MyLearningPathDetailsResponse;
 
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import com.fatayriTech.avarLMS.enums.LearningPathAssignmentStatus;
 import com.fatayriTech.avarLMS.enums.LearningPathAssignmentTargetType;
 import com.fatayriTech.avarLMS.model.*;
@@ -16,6 +21,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
 @Service
 @RequiredArgsConstructor
 public class LearningPathAssignmentService {
@@ -28,7 +34,8 @@ public class LearningPathAssignmentService {
     private final SpecializationRepo specializationRepo;
     private final LocationRepo locationRepo;
     private final SubTeamRepo subTeamRepo;
-
+    private final LearningPathItemRepo learningPathItemRepo;
+    private final TrainingAssignmentRepo trainingAssignmentRepo;
     public List<LearningPathAssignmentResponse> getAll(Long organizationId) {
         refreshOverdueAssignments(organizationId);
 
@@ -101,6 +108,11 @@ public class LearningPathAssignmentService {
                 .status(LearningPathAssignmentStatus.NOT_STARTED)
                 .progressPercentage(0)
                 .active(true)
+                .assignmentRequired(
+                        request.getAssignmentRequired() == null
+                                ? true
+                                : request.getAssignmentRequired()
+                )
                 .build();
 
         return mapToResponse(assignmentRepo.save(assignment));
@@ -144,6 +156,11 @@ public class LearningPathAssignmentService {
                         .status(LearningPathAssignmentStatus.NOT_STARTED)
                         .progressPercentage(0)
                         .active(true)
+                        .assignmentRequired(
+                                request.getAssignmentRequired() == null
+                                        ? true
+                                        : request.getAssignmentRequired()
+                        )
                         .build()
                 )
                 .toList();
@@ -375,6 +392,7 @@ public class LearningPathAssignmentService {
                 .active(assignment.getActive())
                 .creationDate(assignment.getCreationDate())
                 .modificationDate(assignment.getModificationDate())
+                .assignmentRequired(assignment.getAssignmentRequired())
                 .build();
     }
 
@@ -397,5 +415,164 @@ public class LearningPathAssignmentService {
         }
 
         return employee.getEmail() != null ? employee.getEmail() : "-";
+    }
+
+    public MyLearningPathDetailsResponse getMyLearningPathDetails(
+            Long organizationId,
+            Long assignmentId
+    ) {
+        LearningPathAssignment assignment = findAssignment(organizationId, assignmentId);
+
+        if (assignment.getTargetType() != LearningPathAssignmentTargetType.EMPLOYEE) {
+            throw new RuntimeException("Learning path details are only available for employee assignments");
+        }
+
+        LearningPath learningPath = assignment.getLearningPath();
+
+        List<LearningPathItem> pathItems =
+                learningPathItemRepo.findPathItemsWithTraining(
+                        organizationId,
+                        learningPath.getId()
+                );
+
+        List<TrainingAssignment> employeeTrainingAssignments =
+                trainingAssignmentRepo.findByOrganizationIdAndEmployeeIdAndActiveTrueOrderByCreationDateDesc(
+                        organizationId,
+                        assignment.getTargetId()
+                );
+
+        Map<Long, TrainingAssignment> trainingAssignmentByCatalogueId =
+                employeeTrainingAssignments
+                        .stream()
+                        .filter(item -> item.getTrainingCatalogue() != null)
+                        .collect(Collectors.toMap(
+                                item -> item.getTrainingCatalogue().getId(),
+                                item -> item,
+                                (first, second) -> first
+                        ));
+
+        List<MyLearningPathDetailsResponse.TrainingItem> trainingItems =
+                buildTrainingItems(pathItems, trainingAssignmentByCatalogueId);
+
+        int totalTrainings = trainingItems.size();
+
+        int completedTrainings = (int) trainingItems.stream()
+                .filter(item -> item.getStatus() == TrainingAssignmentStatus.COMPLETED)
+                .count();
+
+        int inProgressTrainings = (int) trainingItems.stream()
+                .filter(item -> item.getStatus() == TrainingAssignmentStatus.IN_PROGRESS)
+                .count();
+
+        int remainingTrainings = Math.max(totalTrainings - completedTrainings, 0);
+
+        int progress = totalTrainings == 0
+                ? 0
+                : (int) Math.round((completedTrainings * 100.0) / totalTrainings);
+
+        MyLearningPathDetailsResponse.TrainingItem nextTraining =
+                trainingItems.stream()
+                        .filter(item -> !Boolean.TRUE.equals(item.getLocked()))
+                        .filter(item -> item.getStatus() != TrainingAssignmentStatus.COMPLETED)
+                        .findFirst()
+                        .orElse(null);
+
+        return MyLearningPathDetailsResponse.builder()
+                .assignmentId(assignment.getId())
+                .learningPathId(learningPath.getId())
+                .title(learningPath.getName())
+                .description(learningPath.getDescription())
+                .type("Learning Path")
+                .assignedVia("Direct Employee Assignment")
+                .expiryDate(assignment.getExpiryDate())
+                .validityDays(assignment.getValidityDays())
+                .status(assignment.getStatus())
+                .progress(progress)
+                .completedTrainings(completedTrainings)
+                .inProgressTrainings(inProgressTrainings)
+                .remainingTrainings(remainingTrainings)
+                .totalTrainings(totalTrainings)
+                .totalDuration(formatTotalDuration(pathItems))
+                .assignmentRequired(assignment.getAssignmentRequired())
+                .certificateEnabled(false)
+                .nextTraining(nextTraining)
+                .trainings(trainingItems)
+                .build();
+    }
+    private List<MyLearningPathDetailsResponse.TrainingItem> buildTrainingItems(
+            List<LearningPathItem> pathItems,
+            Map<Long, TrainingAssignment> trainingAssignmentByCatalogueId
+    ) {
+        boolean previousCompleted = true;
+
+        List<MyLearningPathDetailsResponse.TrainingItem> result = new java.util.ArrayList<>();
+
+        for (int index = 0; index < pathItems.size(); index++) {
+            LearningPathItem pathItem = pathItems.get(index);
+            TrainingCatalogue training = pathItem.getTrainingCatalogue();
+
+            TrainingAssignment trainingAssignment =
+                    trainingAssignmentByCatalogueId.get(training.getId());
+
+            TrainingAssignmentStatus status = trainingAssignment != null
+                    ? trainingAssignment.getStatus()
+                    : TrainingAssignmentStatus.NOT_STARTED;
+
+            Integer progress = trainingAssignment != null &&
+                    trainingAssignment.getProgressPercentage() != null
+                    ? trainingAssignment.getProgressPercentage()
+                    : 0;
+
+            boolean locked =
+                    Boolean.TRUE.equals(pathItem.getLockUntilPreviousCompleted()) &&
+                            !previousCompleted;
+
+            result.add(
+                    MyLearningPathDetailsResponse.TrainingItem.builder()
+                            .learningPathItemId(pathItem.getId())
+                            .trainingId(training.getId())
+                            .trainingAssignmentId(
+                                    trainingAssignment == null ? null : trainingAssignment.getId()
+                            )
+                            .step(index + 1)
+                            .title(training.getTitle())
+                            .type("Training")
+                            .duration(formatDuration(training.getDurationHours()))
+                            .status(status)
+                            .progress(progress)
+                            .mandatory(pathItem.getMandatory())
+                            .unlocked(!locked)
+                            .locked(locked)
+                            .lockReason(
+                                    locked
+                                            ? "Complete previous training to unlock"
+                                            : null
+                            )
+                            .build()
+            );
+
+            previousCompleted = status == TrainingAssignmentStatus.COMPLETED;
+        }
+
+        return result;
+    }
+    private String formatTotalDuration(List<LearningPathItem> pathItems) {
+        int totalHours = pathItems.stream()
+                .map(LearningPathItem::getTrainingCatalogue)
+                .filter(Objects::nonNull)
+                .map(TrainingCatalogue::getDurationHours)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+
+        return formatDuration(totalHours);
+    }
+
+    private String formatDuration(Integer hours) {
+        if (hours == null || hours <= 0) {
+            return "-";
+        }
+
+        return hours + "h";
     }
 }

@@ -1,14 +1,19 @@
 package com.fatayriTech.avarLMS.service.Training;
 
+import com.fatayriTech.avarLMS.enums.NotificationEventType;
+import com.fatayriTech.avarLMS.enums.NotificationModule;
 import com.fatayriTech.avarLMS.enums.TrainingAssignmentStatus;
 import com.fatayriTech.avarLMS.model.Employee;
+import com.fatayriTech.avarLMS.model.NotificationRule;
 import com.fatayriTech.avarLMS.model.TrainingAssignment;
 import com.fatayriTech.avarLMS.model.TrainingCatalogue;
 import com.fatayriTech.avarLMS.repository.Employee.EmployeeRepo;
+import com.fatayriTech.avarLMS.repository.NotificationRepos.NotificationRuleRepo;
 import com.fatayriTech.avarLMS.repository.TrainingAssignmentRepo;
 import com.fatayriTech.avarLMS.repository.TrainingCatalogueRepo;
 import com.fatayriTech.avarLMS.request.training.TrainingAssignmentRequest;
 import com.fatayriTech.avarLMS.response.training.TrainingAssignmentResponse;
+import com.fatayriTech.avarLMS.service.Notification.NotificationDispatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +28,8 @@ public class TrainingAssignmentService {
     private final TrainingAssignmentRepo trainingAssignmentRepo;
     private final EmployeeRepo employeeRepo;
     private final TrainingCatalogueRepo trainingCatalogueRepo;
+    private final NotificationRuleRepo notificationRuleRepo;
+    private final NotificationDispatchService notificationDispatchService;
 
     public List<TrainingAssignmentResponse> getAll(Long organizationId) {
         refreshOverdueAssignments(organizationId);
@@ -79,10 +86,19 @@ public class TrainingAssignmentService {
                 .validityDays(request.getValidityDays())
                 .status(TrainingAssignmentStatus.NOT_STARTED)
                 .progressPercentage(0)
+                .assignmentRequired(
+                        request.getAssignmentRequired() == null
+                                ? true
+                                : request.getAssignmentRequired()
+                )
                 .active(true)
                 .build();
 
-        return mapToResponse(trainingAssignmentRepo.save(assignment));
+        TrainingAssignment savedAssignment = trainingAssignmentRepo.save(assignment);
+
+        sendTrainingAssignedNotifications(savedAssignment);
+
+        return mapToResponse(savedAssignment);
     }
 
     public List<TrainingAssignmentResponse> createBatch(
@@ -124,6 +140,11 @@ public class TrainingAssignmentService {
                         .status(TrainingAssignmentStatus.NOT_STARTED)
                         .progressPercentage(0)
                         .active(true)
+                        .assignmentRequired(
+                                request.getAssignmentRequired() == null
+                                        ? true
+                                        : request.getAssignmentRequired()
+                        )
                         .build()
                 )
                 .toList();
@@ -132,7 +153,11 @@ public class TrainingAssignmentService {
             throw new RuntimeException("All selected employees already have this training assigned");
         }
 
-        return trainingAssignmentRepo.saveAll(assignments)
+        List<TrainingAssignment> savedAssignments = trainingAssignmentRepo.saveAll(assignments);
+
+        savedAssignments.forEach(this::sendTrainingAssignedNotifications);
+
+        return savedAssignments
                 .stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -257,6 +282,91 @@ public class TrainingAssignmentService {
         trainingAssignmentRepo.saveAll(overdue);
     }
 
+    private void sendTrainingAssignedNotifications(TrainingAssignment assignment) {
+        Employee employee = assignment.getEmployee();
+        TrainingCatalogue training = assignment.getTrainingCatalogue();
+
+        if (employee == null || training == null) {
+            return;
+        }
+
+        List<NotificationRule> rules =
+                notificationRuleRepo.findByOrganizationIdAndModuleAndEventTypeAndActiveTrue(
+                        assignment.getOrganizationId(),
+                        NotificationModule.TRAINING,
+                        NotificationEventType.ASSIGNED
+                );
+
+        if (rules.isEmpty()) {
+            return;
+        }
+
+        for (NotificationRule rule : rules) {
+            String eventKey =
+                    "TRAINING_ASSIGNED:" +
+                            assignment.getId() +
+                            ":" +
+                            rule.getCode();
+
+            String subject = render(
+                    rule.getSubjectTemplate(),
+                    "New training assigned: {itemName}",
+                    training.getTitle(),
+                    assignment.getExpiryDate()
+            );
+
+            String body = render(
+                    rule.getBodyTemplate(),
+                    "You have been assigned a new training: {itemName}.",
+                    training.getTitle(),
+                    assignment.getExpiryDate()
+            );
+
+            if (Boolean.TRUE.equals(rule.getChannelEmail())) {
+                notificationDispatchService.createEmailEventIfNotExists(
+                        rule,
+                        eventKey,
+                        "TRAINING_ASSIGNMENT",
+                        assignment.getId(),
+                        employee.getMasterUserId(),
+                        employee.getId(),
+                        employee.getEmail(),
+                        subject,
+                        body
+                );
+            }
+
+            if (Boolean.TRUE.equals(rule.getChannelInApp())) {
+                notificationDispatchService.createInAppEventIfNotExists(
+                        rule,
+                        eventKey,
+                        "TRAINING_ASSIGNMENT",
+                        assignment.getId(),
+                        employee.getMasterUserId(),
+                        employee.getId(),
+                        subject,
+                        body,
+                        "/my-trainings"
+                );
+            }
+        }
+    }
+
+    private String render(
+            String template,
+            String fallback,
+            String itemName,
+            LocalDate expiryDate
+    ) {
+        String text = template == null || template.isBlank()
+                ? fallback
+                : template;
+
+        return text
+                .replace("{itemName}", itemName == null ? "-" : itemName)
+                .replace("{expiryDate}", expiryDate == null ? "-" : expiryDate.toString());
+    }
+
     private TrainingAssignmentResponse mapToResponse(TrainingAssignment assignment) {
         Employee employee = assignment.getEmployee();
         TrainingCatalogue training = assignment.getTrainingCatalogue();
@@ -279,6 +389,7 @@ public class TrainingAssignmentService {
                 .active(assignment.getActive())
                 .creationDate(assignment.getCreationDate())
                 .modificationDate(assignment.getModificationDate())
+                .assignmentRequired(assignment.getAssignmentRequired())
                 .build();
     }
 

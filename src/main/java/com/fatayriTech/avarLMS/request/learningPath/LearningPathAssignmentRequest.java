@@ -26,4 +26,6 @@ public class LearningPathAssignmentRequest {
     private AcademyStatus academyStatus;
 
     private Integer validityDays;
+    private Boolean assignmentRequired;
+
 }

@@ -15,7 +15,7 @@ public class DashboardResponse {
     private List<DepartmentMetric> departmentCompletion;
     private List<DepartmentMetric> departmentCompliance;
     private List<AssignmentStatusMetric> assignmentStatus;
-
+    private List<DepartmentMetric> mandatoryCompletionByDepartment;//
     private List<OverdueTraining> overdueTrainings;
     private List<TopTraining> topTrainings;
 

@@ -20,4 +20,7 @@ public class DashboardFilterRequest {
 
     private LocalDate completionDateFrom;
     private LocalDate completionDateTo;
+    private Long locationId;
+    private String academyStatus;
+    private String module;
 }

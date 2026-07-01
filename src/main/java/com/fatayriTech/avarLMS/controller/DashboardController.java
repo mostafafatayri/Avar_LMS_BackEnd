@@ -40,7 +40,9 @@ public class DashboardController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate completionDateFrom,
-
+            @RequestParam(required = false) Long locationId,
+            @RequestParam(required = false) String academyStatus,
+            @RequestParam(required = false) String module,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate completionDateTo
@@ -54,6 +56,9 @@ public class DashboardController {
         filter.setDueDateTo(dueDateTo);
         filter.setCompletionDateFrom(completionDateFrom);
         filter.setCompletionDateTo(completionDateTo);
+        filter.setLocationId(locationId);
+        filter.setAcademyStatus(academyStatus);
+        filter.setModule(module);
 
         return dashboardService.getDashboard(organizationId, filter);
     }

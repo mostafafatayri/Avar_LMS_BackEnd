@@ -72,7 +72,14 @@ public class DataInitializer {
                     "LEARNING_PATH_ASSIGNMENT_DELETE",
 
                     // Admin and HR can only view roles
-                    "ROLE_VIEW"
+                    "ROLE_VIEW",
+                    "NOTIFICATION_RULE_VIEW",
+                    "NOTIFICATION_RULE_CREATE",
+                    "NOTIFICATION_RULE_UPDATE",
+                    "NOTIFICATION_RULE_DELETE",
+
+                    "NOTIFICATION_EVENT_VIEW",
+                    "LEARNING_PATH_ASSIGNMENT_VIEW"
             );
 
             List<String> superAdminPermissions = List.of(
@@ -120,7 +127,14 @@ public class DataInitializer {
                     "ROLE_CREATE",
                     "ROLE_UPDATE",
                     "ROLE_DELETE",
-                    "ROLE_ASSIGN_PERMISSION"
+                    "ROLE_ASSIGN_PERMISSION",
+                    "NOTIFICATION_RULE_VIEW",
+                    "NOTIFICATION_RULE_CREATE",
+                    "NOTIFICATION_RULE_UPDATE",
+                    "NOTIFICATION_RULE_DELETE",
+
+                    "NOTIFICATION_EVENT_VIEW",
+                    "LEARNING_PATH_ASSIGNMENT_VIEW"
             );
 
             List<String> managerPermissions = List.of(
@@ -136,7 +150,8 @@ public class DataInitializer {
                     "TRAINING_CATALOGUE_VIEW",
                     "TRAINING_ASSIGNMENT_VIEW",
                     "LEARNING_PATH_ASSIGNMENT_VIEW",
-                    "MY_TRAINING_VIEW"
+                    "MY_TRAINING_VIEW",
+                    "LEARNING_PATH_ASSIGNMENT_VIEW"
 
             );
 
@@ -144,7 +159,8 @@ public class DataInitializer {
                     "EMPLOYEE_VIEW",
                     "MY_TRAINING_VIEW",
                     "TRAINING_CATALOGUE_VIEW",
-                    "DEPARTMENT_VIEW"
+                    "DEPARTMENT_VIEW",
+                    "LEARNING_PATH_ASSIGNMENT_VIEW"
             );
 
             SecurityRole superAdminRole = createOrUpdateRole(
