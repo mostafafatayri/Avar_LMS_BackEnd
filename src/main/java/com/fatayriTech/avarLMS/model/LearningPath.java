@@ -64,6 +64,8 @@ public class LearningPath {
     @JoinColumn(name = "parent_learning_path_id")
     private LearningPath parentLearningPath;
 
+    @Column(name = "display_order")
+    private Integer displayOrder = 0;
     @PrePersist
     protected void onCreate() {
         creationDate = LocalDateTime.now();
@@ -77,6 +79,7 @@ public class LearningPath {
         if (approvalRequired == null) approvalRequired = false;
         if (durationDays == null) durationDays = 0;
         if (status == null) status = LearningPathStatus.DRAFT;
+        if (displayOrder == null) displayOrder = 0;
     }
 
     @PreUpdate

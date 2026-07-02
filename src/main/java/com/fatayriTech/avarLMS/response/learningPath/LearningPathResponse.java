@@ -52,4 +52,7 @@ public class LearningPathResponse {
     private Integer completionCount;
     private Boolean lockingEnabled;
     private LearningPathStatus status;
+
+
+    private Integer displayOrder;
 }

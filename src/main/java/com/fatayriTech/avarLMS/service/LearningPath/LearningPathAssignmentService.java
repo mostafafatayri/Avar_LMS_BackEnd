@@ -416,7 +416,6 @@ public class LearningPathAssignmentService {
 
         return employee.getEmail() != null ? employee.getEmail() : "-";
     }
-
     public MyLearningPathDetailsResponse getMyLearningPathDetails(
             Long organizationId,
             Long assignmentId
@@ -429,11 +428,15 @@ public class LearningPathAssignmentService {
 
         LearningPath learningPath = assignment.getLearningPath();
 
-        List<LearningPathItem> pathItems =
-                learningPathItemRepo.findPathItemsWithTraining(
+        List<LearningPath> pathSequence = new java.util.ArrayList<>();
+        pathSequence.add(learningPath);
+
+        pathSequence.addAll(
+                learningPathRepo.findByOrganizationIdAndParentLearningPathIdAndActiveTrueOrderByDisplayOrderAscCreationDateAsc(
                         organizationId,
                         learningPath.getId()
-                );
+                )
+        );
 
         List<TrainingAssignment> employeeTrainingAssignments =
                 trainingAssignmentRepo.findByOrganizationIdAndEmployeeIdAndActiveTrueOrderByCreationDateDesc(
@@ -451,8 +454,14 @@ public class LearningPathAssignmentService {
                                 (first, second) -> first
                         ));
 
+        BuildResult buildResult = buildSectionsAndFlatTrainings(
+                organizationId,
+                pathSequence,
+                trainingAssignmentByCatalogueId
+        );
+
         List<MyLearningPathDetailsResponse.TrainingItem> trainingItems =
-                buildTrainingItems(pathItems, trainingAssignmentByCatalogueId);
+                buildResult.flatTrainings();
 
         int totalTrainings = trainingItems.size();
 
@@ -492,13 +501,145 @@ public class LearningPathAssignmentService {
                 .inProgressTrainings(inProgressTrainings)
                 .remainingTrainings(remainingTrainings)
                 .totalTrainings(totalTrainings)
-                .totalDuration(formatTotalDuration(pathItems))
+                .totalDuration(formatTotalDuration(buildResult.allPathItems()))
                 .assignmentRequired(assignment.getAssignmentRequired())
                 .certificateEnabled(false)
                 .nextTraining(nextTraining)
                 .trainings(trainingItems)
+                .sections(buildResult.sections())
                 .build();
     }
+
+    private BuildResult buildSectionsAndFlatTrainings(
+            Long organizationId,
+            List<LearningPath> pathSequence,
+            Map<Long, TrainingAssignment> trainingAssignmentByCatalogueId
+    ) {
+        boolean previousCompleted = true;
+        int globalStep = 1;
+
+        List<MyLearningPathDetailsResponse.PathSection> sections =
+                new java.util.ArrayList<>();
+
+        List<MyLearningPathDetailsResponse.TrainingItem> flatTrainings =
+                new java.util.ArrayList<>();
+
+        List<LearningPathItem> allPathItems =
+                new java.util.ArrayList<>();
+
+        for (int sectionIndex = 0; sectionIndex < pathSequence.size(); sectionIndex++) {
+            LearningPath path = pathSequence.get(sectionIndex);
+
+            List<LearningPathItem> pathItems =
+                    learningPathItemRepo.findPathItemsWithTraining(
+                            organizationId,
+                            path.getId()
+                    );
+
+            allPathItems.addAll(pathItems);
+
+            List<MyLearningPathDetailsResponse.TrainingItem> sectionTrainings =
+                    new java.util.ArrayList<>();
+
+            for (LearningPathItem pathItem : pathItems) {
+                TrainingCatalogue training = pathItem.getTrainingCatalogue();
+
+                TrainingAssignment trainingAssignment =
+                        trainingAssignmentByCatalogueId.get(training.getId());
+
+                TrainingAssignmentStatus status = trainingAssignment != null
+                        ? trainingAssignment.getStatus()
+                        : TrainingAssignmentStatus.NOT_STARTED;
+
+                Integer progress = trainingAssignment != null &&
+                        trainingAssignment.getProgressPercentage() != null
+                        ? trainingAssignment.getProgressPercentage()
+                        : 0;
+
+                boolean locked =
+                        Boolean.TRUE.equals(path.getLockingEnabled()) &&
+                                Boolean.TRUE.equals(pathItem.getLockUntilPreviousCompleted()) &&
+                                !previousCompleted;
+
+                MyLearningPathDetailsResponse.TrainingItem trainingItem =
+                        MyLearningPathDetailsResponse.TrainingItem.builder()
+                                .learningPathItemId(pathItem.getId())
+                                .trainingId(training.getId())
+                                .trainingAssignmentId(
+                                        trainingAssignment == null ? null : trainingAssignment.getId()
+                                )
+                                .sectionLearningPathId(path.getId())
+                                .sectionTitle(path.getName())
+                                .step(globalStep)
+                                .title(training.getTitle())
+                                .type("Training")
+                                .duration(formatDuration(training.getDurationHours()))
+                                .status(status)
+                                .progress(progress)
+                                .mandatory(pathItem.getMandatory())
+                                .unlocked(!locked)
+                                .locked(locked)
+                                .lockReason(
+                                        locked
+                                                ? "Complete previous training to unlock"
+                                                : null
+                                )
+                                .build();
+
+                sectionTrainings.add(trainingItem);
+                flatTrainings.add(trainingItem);
+
+                previousCompleted = status == TrainingAssignmentStatus.COMPLETED;
+                globalStep++;
+            }
+
+            sections.add(
+                    MyLearningPathDetailsResponse.PathSection.builder()
+                            .learningPathId(path.getId())
+                            .title(sectionIndex == 0 ? "Main Path" : path.getName())
+                            .description(path.getDescription())
+                            .order(sectionIndex + 1)
+                            .trainings(sectionTrainings)
+                            .build()
+            );
+        }
+
+        return new BuildResult(sections, flatTrainings, allPathItems);
+    }
+
+    private record BuildResult(
+            List<MyLearningPathDetailsResponse.PathSection> sections,
+            List<MyLearningPathDetailsResponse.TrainingItem> flatTrainings,
+            List<LearningPathItem> allPathItems
+    ) {
+    }
+
+    private String formatTotalDuration(List<LearningPathItem> pathItems) {
+        int totalHours = pathItems.stream()
+                .map(LearningPathItem::getTrainingCatalogue)
+                .filter(Objects::nonNull)
+                .map(TrainingCatalogue::getDurationHours)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+
+        return formatDuration(totalHours);
+    }
+
+    private String formatDuration(Integer hours) {
+        if (hours == null || hours <= 0) {
+            return "-";
+        }
+
+        return hours + "h";
+    }
+
+
+
+
+
+
+    /// ////
     private List<MyLearningPathDetailsResponse.TrainingItem> buildTrainingItems(
             List<LearningPathItem> pathItems,
             Map<Long, TrainingAssignment> trainingAssignmentByCatalogueId
@@ -556,23 +697,7 @@ public class LearningPathAssignmentService {
 
         return result;
     }
-    private String formatTotalDuration(List<LearningPathItem> pathItems) {
-        int totalHours = pathItems.stream()
-                .map(LearningPathItem::getTrainingCatalogue)
-                .filter(Objects::nonNull)
-                .map(TrainingCatalogue::getDurationHours)
-                .filter(Objects::nonNull)
-                .mapToInt(Integer::intValue)
-                .sum();
 
-        return formatDuration(totalHours);
-    }
 
-    private String formatDuration(Integer hours) {
-        if (hours == null || hours <= 0) {
-            return "-";
-        }
 
-        return hours + "h";
-    }
 }

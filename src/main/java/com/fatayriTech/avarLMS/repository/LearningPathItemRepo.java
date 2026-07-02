@@ -43,4 +43,6 @@ public interface LearningPathItemRepo extends JpaRepository<LearningPathItem, Lo
             Long organizationId,
             Long learningPathId
     );
+
+
 }

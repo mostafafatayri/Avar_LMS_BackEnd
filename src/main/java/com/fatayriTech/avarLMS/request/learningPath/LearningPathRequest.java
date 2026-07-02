@@ -31,4 +31,7 @@ public class LearningPathRequest {
     private Boolean approvalRequired;
 
     private Long parentLearningPathId;
+
+
+    private Integer displayOrder;
 }

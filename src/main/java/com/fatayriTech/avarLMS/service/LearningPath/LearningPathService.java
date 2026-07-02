@@ -93,6 +93,7 @@ public class LearningPathService {
                 .status(request.getStatus() != null ? request.getStatus() : LearningPathStatus.DRAFT)
                 .approvalRequired(request.getApprovalRequired() != null ? request.getApprovalRequired() : false)
                 .parentLearningPath(parent)
+                .displayOrder(request.getDisplayOrder() == null ? 0 : request.getDisplayOrder())
                 .active(true)
                 .build();
 
@@ -137,6 +138,7 @@ public class LearningPathService {
         path.setStatus(request.getStatus() != null ? request.getStatus() : LearningPathStatus.DRAFT);
         path.setApprovalRequired(request.getApprovalRequired() != null ? request.getApprovalRequired() : false);
         path.setParentLearningPath(parent);
+        path.setDisplayOrder(request.getDisplayOrder() == null ? 0 : request.getDisplayOrder());
 
         return mapPathToResponse(learningPathRepo.save(path), true);
     }
@@ -216,7 +218,7 @@ public class LearningPathService {
         findPath(organizationId, pathId);
 
         return learningPathRepo
-                .findByOrganizationIdAndParentLearningPathIdAndActiveTrueOrderByCreationDateDesc(
+                .findByOrganizationIdAndParentLearningPathIdAndActiveTrueOrderByDisplayOrderAscCreationDateAsc(
                         organizationId,
                         pathId
                 )
@@ -255,6 +257,7 @@ public class LearningPathService {
                 .lockingEnabled(path.getLockingEnabled())
                 .status(path.getStatus())
                 .approvalRequired(path.getApprovalRequired())
+                .displayOrder(path.getDisplayOrder())
                 .parentLearningPathId(
                         path.getParentLearningPath() != null
                                 ? path.getParentLearningPath().getId()
@@ -293,7 +296,7 @@ public class LearningPathService {
         );
 
         long subPathTrainingCount = learningPathRepo
-                .findByOrganizationIdAndParentLearningPathIdAndActiveTrueOrderByCreationDateDesc(
+                .findByOrganizationIdAndParentLearningPathIdAndActiveTrueOrderByDisplayOrderAscCreationDateAsc(
                         path.getOrganizationId(),
                         path.getId()
                 )

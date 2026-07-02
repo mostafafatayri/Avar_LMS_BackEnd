@@ -37,6 +37,17 @@ public class MyLearningPathDetailsResponse {
     private TrainingItem nextTraining;
 
     private List<TrainingItem> trainings;
+    private List<PathSection> sections;
+
+    @Getter
+    @Builder
+    public static class PathSection {
+        private Long learningPathId;
+        private String title;
+        private String description;
+        private Integer order;
+        private List<TrainingItem> trainings;
+    }
 
     @Getter
     @Builder
@@ -44,6 +55,9 @@ public class MyLearningPathDetailsResponse {
         private Long learningPathItemId;
         private Long trainingId;
         private Long trainingAssignmentId;
+
+        private Long sectionLearningPathId;
+        private String sectionTitle;
 
         private Integer step;
         private String title;
